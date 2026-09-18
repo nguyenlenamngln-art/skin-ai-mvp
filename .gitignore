@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# Research images can be large and may contain sensitive/controlled data.
+data/raw/
+data/interim/
+data/processed/
+
+# Model outputs/checkpoints
+models/
+runs/
+*.pt
+*.pth
+*.onnx
