@@ -1,0 +1,37 @@
+name: UVFD dataset inspect
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/inspect_uvfd_zip.py"
+      - ".github/workflows/uvfd_inspect.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download official Mendeley dataset ZIP
+        run: |
+          curl -L --fail --retry 3 --retry-delay 5 \
+            "https://data.mendeley.com/public-api/zip/wvmw7p76t8/download/2" \
+            -o uvfd.zip
+          ls -lh uvfd.zip
+      - name: Inspect and pair images/masks
+        run: python scripts/inspect_uvfd_zip.py
+      - name: Upload compact inspection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvfd-inspection
+          path: artifacts/uvfd_inspection
+          if-no-files-found: error
+          retention-days: 7
