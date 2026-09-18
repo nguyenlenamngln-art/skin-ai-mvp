@@ -1,0 +1,31 @@
+name: UVFD public API inventory
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/uvfd_inventory_mendeley.py"
+      - ".github/workflows/uvfd_inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Query Mendeley public API
+        run: python scripts/uvfd_inventory_mendeley.py
+      - name: Upload API inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvfd-api-inventory
+          path: artifacts/uvfd_inventory
+          if-no-files-found: error
+          retention-days: 7
