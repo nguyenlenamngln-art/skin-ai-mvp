@@ -15,7 +15,7 @@ ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.2.0')
+app=FastAPI(title='Skin AI Product API',version='0.3.0')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
 store=ProductStore(DB_PATH); _engine=None
@@ -34,11 +34,18 @@ def get_engine():
 
 def public_scan(scan):
     sid=scan['id']
-    return {**scan,'media':{'overlay':f'/media/{sid}/overlay.png','artifact_mask':f'/media/{sid}/artifact_mask.png','porphyrin_mask':f'/media/{sid}/porphyrin_mask.png','dark_mask':f'/media/{sid}/dark_artifact_mask.png','light_mask':f'/media/{sid}/light_artifact_mask.png'}}
+    return {**scan,'media':{
+        'original':f'/media/{sid}/original.jpg',
+        'overlay':f'/media/{sid}/overlay.png',
+        'artifact_mask':f'/media/{sid}/artifact_mask.png',
+        'porphyrin_mask':f'/media/{sid}/porphyrin_mask.png',
+        'dark_mask':f'/media/{sid}/dark_artifact_mask.png',
+        'light_mask':f'/media/{sid}/light_artifact_mask.png'
+    }}
 
 @app.get('/health')
 def health():
-    return {'status':'ok','model_available':MODEL_PATH.exists(),'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR)}
+    return {'status':'ok','model_available':MODEL_PATH.exists(),'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.3.0'}
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30):
