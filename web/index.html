@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#f5f3ec" />
   <title>Skin AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect rx=%2222%22 width=%22100%22 height=%22100%22 fill=%22%23314d3e%22/><text x=%2250%22 y=%2268%22 text-anchor=%22middle%22 font-size=%2262%22 fill=%22white%22>✦</text></svg>" />
   <link rel="stylesheet" href="/app/styles.css" />
 </head>
 <body>
@@ -35,11 +36,15 @@
       <section id="scan" class="view">
         <div class="scan-grid">
           <div class="card capture">
-            <div class="modes"><button class="mode active">UV fluorescence</button><button class="mode" disabled>Phone RGB <em>soon</em></button></div>
+            <div class="modes"><button class="mode active">UV fluorescence</button><button class="mode" disabled>Phone RGB <em>next</em></button></div>
             <label class="dropzone" id="dropzone"><input id="fileInput" type="file" accept="image/*" capture="environment"/><div id="dropContent"><div class="uploadIcon">＋</div><h3>Upload or capture UV image</h3><p>PNG or JPEG · up to 20 MB</p><span class="choose">Choose image</span></div><img id="preview" class="hidden" alt="Selected UV image" /></label>
             <div class="tips"><span>Artifact pixels are excluded, never inpainted.</span><span>Repeat scans under similar capture conditions.</span></div>
           </div>
-          <div class="card result"><span class="eyebrow">LATEST ANALYSIS</span><div id="resultBody" class="empty resultEmpty">Your artifact-corrected overlay and fluorescence metrics will appear here.</div></div>
+
+          <div class="card result">
+            <div class="resultHead"><div><span class="eyebrow">ANALYSIS</span><h3 id="resultDate">Latest scan</h3></div><span id="compareBadge" class="compareBadge hidden"></span></div>
+            <div id="resultBody" class="empty resultEmpty">Your artifact-corrected overlay and fluorescence metrics will appear here.</div>
+          </div>
         </div>
       </section>
 
