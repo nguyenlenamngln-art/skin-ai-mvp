@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skin AI image manifest row",
+  "type": "object",
+  "required": ["dataset_id", "sample_id", "subject_id", "modality", "path", "license"],
+  "properties": {
+    "dataset_id": {"type": "string"},
+    "sample_id": {"type": "string"},
+    "subject_id": {"type": "string"},
+    "visit": {"type": ["string", "null"]},
+    "region": {"type": ["string", "null"]},
+    "modality": {"enum": ["rgb", "polarized", "uv365", "uva_fluorescence", "uvfd", "hyperspectral_vis", "hyperspectral_nir", "sebumetry", "unknown"]},
+    "path": {"type": "string"},
+    "width": {"type": ["integer", "null"]},
+    "height": {"type": ["integer", "null"]},
+    "label_path": {"type": ["string", "null"]},
+    "label_type": {"type": ["string", "null"]},
+    "license": {"type": "string"},
+    "source_url": {"type": ["string", "null"]},
+    "split": {"enum": ["train", "val", "test", "unassigned"]},
+    "notes": {"type": ["string", "null"]}
+  }
+}
