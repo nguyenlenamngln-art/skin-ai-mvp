@@ -51,9 +51,12 @@ class ProductStore:
                 (scan_id, created_at, modality, source_name, json.dumps(metrics), media_dir),
             )
 
-    def list_scans(self, limit: int = 30) -> list[dict[str, Any]]:
+    def list_scans(self, limit: int = 30, modality: str | None = None) -> list[dict[str, Any]]:
         with self.connect() as con:
-            rows = con.execute("SELECT * FROM scans ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+            if modality:
+                rows = con.execute("SELECT * FROM scans WHERE modality=? ORDER BY created_at DESC LIMIT ?", (modality, limit)).fetchall()
+            else:
+                rows = con.execute("SELECT * FROM scans ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
         return [self._scan_row(r) for r in rows]
 
     def get_scan(self, scan_id: str) -> dict[str, Any] | None:
@@ -61,16 +64,31 @@ class ProductStore:
             row = con.execute("SELECT * FROM scans WHERE id=?", (scan_id,)).fetchone()
         return self._scan_row(row) if row else None
 
-    def trends(self, limit: int = 90) -> list[dict[str, Any]]:
-        rows = list(reversed(self.list_scans(limit=limit)))
-        return [{
-            "scan_id": row["id"],
-            "created_at": row["created_at"],
-            "porphyrin_component_count_proxy": row["metrics"].get("porphyrin_component_count_proxy"),
-            "porphyrin_area_fraction_valid": row["metrics"].get("porphyrin_area_fraction_valid"),
-            "porphyrin_red_intensity_proxy": row["metrics"].get("porphyrin_red_intensity_proxy"),
-            "artifact_area_fraction": row["metrics"].get("artifact_area_fraction"),
-        } for row in rows]
+    def trends(self, limit: int = 90, modality: str | None = None) -> list[dict[str, Any]]:
+        rows = list(reversed(self.list_scans(limit=limit, modality=modality)))
+        out = []
+        for row in rows:
+            m = row["metrics"]
+            base = {"scan_id": row["id"], "created_at": row["created_at"], "modality": row["modality"]}
+            if row["modality"] == "uv":
+                base.update({
+                    "porphyrin_component_count_proxy": m.get("porphyrin_component_count_proxy"),
+                    "porphyrin_area_fraction_valid": m.get("porphyrin_area_fraction_valid"),
+                    "porphyrin_red_intensity_proxy": m.get("porphyrin_red_intensity_proxy"),
+                    "artifact_area_fraction": m.get("artifact_area_fraction"),
+                })
+            elif row["modality"] == "rgb":
+                base.update({
+                    "redness_index_proxy": m.get("redness_index_proxy"),
+                    "redness_area_fraction": m.get("redness_area_fraction"),
+                    "pigmentation_area_fraction": m.get("pigmentation_area_fraction"),
+                    "texture_index_proxy": m.get("texture_index_proxy"),
+                    "red_spot_count_proxy": m.get("red_spot_count_proxy"),
+                    "pigmented_spot_count_proxy": m.get("pigmented_spot_count_proxy"),
+                    "capture_quality": m.get("capture_quality"),
+                })
+            out.append(base)
+        return out
 
     def get_routine(self) -> dict[str, list[str]]:
         with self.connect() as con:
