@@ -1,0 +1,51 @@
+name: Train UVFD artifact U-Net
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/train_uvfd_unet.py"
+      - ".github/workflows/train_uvfd_v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU training dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pillow
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Download official UVFD v2 dataset
+        run: |
+          curl -L --fail --retry 3 --retry-delay 5 \
+            "https://data.mendeley.com/public-api/zip/wvmw7p76t8/download/2" \
+            -o uvfd.zip
+          mkdir -p data/uvfd
+          unzip -q uvfd.zip -d data/uvfd
+          du -sh data/uvfd
+      - name: Train V1 source-group-held-out U-Net
+        run: |
+          python scripts/train_uvfd_unet.py \
+            --root data/uvfd \
+            --out artifacts/uvfd_train_v1 \
+            --size 128 \
+            --batch 16 \
+            --epochs 4 \
+            --base 16
+      - name: Upload model and metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: uvfd-train-v1
+          path: artifacts/uvfd_train_v1
+          if-no-files-found: error
+          retention-days: 14
