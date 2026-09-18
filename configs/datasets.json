@@ -1,0 +1,56 @@
+{
+  "datasets": [
+    {
+      "id": "dryad_cap_acne",
+      "name": "Therapeutic use of cold atmospheric plasma for mild acne",
+      "landing_page": "https://datadryad.org/dataset/doi:10.5061/dryad.12jm63z3t",
+      "doi": "10.5061/dryad.12jm63z3t",
+      "license": "CC0",
+      "modality": ["uva_fluorescence", "sebumetry"],
+      "illumination_nm": "Visiopor PP 34 UVA; manufacturer documentation should be used to confirm exact band for production claims",
+      "subjects": 40,
+      "visits": ["baseline", "week_6", "week_10"],
+      "regions": ["mentalis", "right_cheek", "right_forehead", "left_forehead", "left_cheek"],
+      "priority": 1
+    },
+    {
+      "id": "mendeley_uvfd_artifacts",
+      "name": "Automatic hair removal on ultraviolet-induced fluorescence dermatoscopy images",
+      "landing_page": "https://data.mendeley.com/datasets/wvmw7p76t8/2",
+      "doi": "10.17632/wvmw7p76t8.2",
+      "license": "CC BY 4.0",
+      "modality": ["uvfd"],
+      "subjects": 33,
+      "source_images": 120,
+      "crop_size": [512, 512],
+      "dark_artifact_crops": 2097,
+      "light_artifact_crops": 805,
+      "labels": ["black_mask", "white_mask"],
+      "priority": 2
+    },
+    {
+      "id": "hyper_skin_2023",
+      "name": "Hyper-Skin 2023",
+      "landing_page": "https://github.com/hyperspectral-skin/Hyper-Skin-2023",
+      "license": "Access controlled by dataset EULA; verify intended commercial/model-training use before production",
+      "modality": ["rgb", "hyperspectral_vis", "hyperspectral_nir", "msi"],
+      "subjects": 51,
+      "cubes": 306,
+      "resolution": [1024, 1024],
+      "bands_original": 448,
+      "vis_range_nm": [400, 700],
+      "nir_range_nm": [700, 1000],
+      "priority": 3
+    },
+    {
+      "id": "mendeley_biopsy_uvfd_pd",
+      "name": "UV-induced fluorescent dermoscopy for biopsy site identification",
+      "landing_page": "https://data.mendeley.com/datasets/8nkcdf6c8y/1",
+      "doi": "10.17632/8nkcdf6c8y.1",
+      "license": "CC BY 4.0",
+      "modality": ["polarized_dermoscopy", "uvfd_365nm"],
+      "paired_cases_reported": 20,
+      "priority": 4
+    }
+  ]
+}
