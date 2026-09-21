@@ -79,6 +79,7 @@ class ProductStore:
                 })
             elif row["modality"] == "rgb":
                 base.update({
+                    "rgb_engine_version": m.get("rgb_engine_version"),
                     "redness_index_proxy": m.get("redness_index_proxy"),
                     "redness_area_fraction": m.get("redness_area_fraction"),
                     "pigmentation_area_fraction": m.get("pigmentation_area_fraction"),
