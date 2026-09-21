@@ -85,6 +85,9 @@ renderResult = function(){
   const deltaRed=prev?deltaText(m.redness_area_fraction,prev.metrics.redness_area_fraction,'pct'):''
   const deltaPigment=prev?deltaText(m.pigmentation_area_fraction,prev.metrics.pigmentation_area_fraction,'pct'):''
   const score=Number.isFinite(m.capture_quality_score)?`${m.capture_quality_score}/100`:'—'
+  const lighting=Math.round(m.quality_subscores?.lighting||0)
+  const segmentation=Math.round(m.quality_subscores?.segmentation||0)
+  const ev=Number.isFinite(m.reference_exposure_delta_ev)?`${m.reference_exposure_delta_ev>0?'+':''}${m.reference_exposure_delta_ev.toFixed(2)} EV vs baseline`:(m.reference_capture_used===false?'no reference yet':'absolute exposure check')
   const guidance=(m.quality_guidance||[]).map(x=>`<li>${x}</li>`).join('')
   const qualityNote=eligible?'Eligible for longitudinal comparison.':'Saved for review only; excluded from longitudinal deltas and trends.'
   body.innerHTML=`
@@ -96,7 +99,8 @@ renderResult = function(){
       ${metric('Texture index',(m.texture_index_proxy||0).toFixed(3),'luminance high-frequency proxy')}
       ${metric('Capture quality',m.capture_quality||'—',`score ${score}`)}
       ${metric('Framing',`${Math.round(m.quality_subscores?.framing||0)}/100`,'face size in frame')}
-      ${metric('Lighting',`${Math.round(m.quality_subscores?.lighting||0)}/100`,'brightness / clipping')}
+      ${metric('Lighting',`${lighting}/100`,ev)}
+      ${metric('Segmentation',`${segmentation}/100`,'skin-boundary stability')}
     </div>
     <div class="scienceNote"><b>Capture protocol ${m.capture_protocol_version||'legacy'}.</b> ${qualityNote}${guidance?`<ul style="margin:8px 0 0 18px;padding:0">${guidance}</ul>`:''}</div>
     <div class="scienceNote"><b>Phone ${rgbVersionLabel(latest)} research measurement.</b> RGB deltas and trends only use same-version, good-quality captures. These remain relative visible-light proxies, not diagnoses or substitutes for polarized/UV imaging.</div>`
