@@ -66,9 +66,26 @@ class ProductStore:
                 eligible = m.get("longitudinal_eligible")
                 if eligible is False or (eligible is None and m.get("capture_quality") not in (None, "good")):
                     continue
+            elif row["modality"] == "uv":
+                if m.get("uv_longitudinal_eligible") is not True or not m.get("uv_comparison_key"):
+                    continue
             base = {"scan_id": row["id"], "created_at": row["created_at"], "modality": row["modality"]}
             if row["modality"] == "uv":
-                base.update({"porphyrin_component_count_proxy": m.get("porphyrin_component_count_proxy"),"porphyrin_area_fraction_valid": m.get("porphyrin_area_fraction_valid"),"porphyrin_red_intensity_proxy": m.get("porphyrin_red_intensity_proxy"),"artifact_area_fraction": m.get("artifact_area_fraction")})
+                base.update({
+                    "uv_analysis_version": m.get("uv_analysis_version"),
+                    "uv_model_signature": m.get("uv_model_signature"),
+                    "uv_input_validation_version": m.get("uv_input_validation_version"),
+                    "uv_input_validation_profile": m.get("uv_input_validation_profile"),
+                    "uv_comparison_series_id": m.get("uv_comparison_series_id"),
+                    "uv_comparison_key": m.get("uv_comparison_key"),
+                    "uv_subject_label": m.get("uv_subject_label"),
+                    "uv_anatomical_site": m.get("uv_anatomical_site"),
+                    "uv_longitudinal_eligible": True,
+                    "porphyrin_component_count_proxy": m.get("porphyrin_component_count_proxy"),
+                    "porphyrin_area_fraction_valid": m.get("porphyrin_area_fraction_valid"),
+                    "porphyrin_red_intensity_proxy": m.get("porphyrin_red_intensity_proxy"),
+                    "artifact_area_fraction": m.get("artifact_area_fraction"),
+                })
             elif row["modality"] == "rgb":
                 base.update({"rgb_engine_version": m.get("rgb_engine_version"),"capture_protocol_version": m.get("capture_protocol_version"),"capture_quality_score": m.get("capture_quality_score"),"longitudinal_eligible": m.get("longitudinal_eligible", m.get("capture_quality") == "good"),"redness_index_proxy": m.get("redness_index_proxy"),"redness_area_fraction": m.get("redness_area_fraction"),"pigmentation_area_fraction": m.get("pigmentation_area_fraction"),"texture_index_proxy": m.get("texture_index_proxy"),"red_spot_count_proxy": m.get("red_spot_count_proxy"),"pigmented_spot_count_proxy": m.get("pigmented_spot_count_proxy"),"capture_quality": m.get("capture_quality")})
             out.append(base)
