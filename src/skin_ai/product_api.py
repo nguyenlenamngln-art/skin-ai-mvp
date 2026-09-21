@@ -16,7 +16,7 @@ ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.5.0')
+app=FastAPI(title='Skin AI Product API',version='0.5.1')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
 store=ProductStore(DB_PATH); _uv_engine=None; _rgb_engine=None
@@ -49,7 +49,7 @@ def public_scan(scan):
 
 @app.get('/health')
 def health():
-    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.5.0'}
+    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.5.1'}
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30, modality:str|None=None):
@@ -79,6 +79,21 @@ def decode_image(raw:bytes)->np.ndarray:
     try: return np.asarray(Image.open(io.BytesIO(raw)).convert('RGB'))
     except Exception as exc: raise HTTPException(status_code=400,detail='Invalid image') from exc
 
+def comparable_rgb_reference(current_metrics:dict)->dict|None:
+    """Nearest saved good RGB scan that can act as an exposure reference.
+
+    Old capture-protocol scans without luminance diagnostics are intentionally
+    skipped; they cannot provide a reliable per-person exposure reference.
+    """
+    version=str(current_metrics.get('rgb_engine_version'))
+    for scan in store.list_scans(limit=100,modality='rgb'):
+        m=scan.get('metrics',{})
+        if str(m.get('rgb_engine_version')) != version: continue
+        if not (m.get('longitudinal_eligible') is True or (m.get('longitudinal_eligible') is None and m.get('capture_quality')=='good')): continue
+        if not isinstance(m.get('skin_luminance_median_0_255'),(int,float)): continue
+        return m
+    return None
+
 @app.post('/v1/uv/analyze')
 async def analyze_uv(image:UploadFile=File(...)):
     rgb=decode_image(await image.read()); result=get_uv_engine().analyze_rgb(rgb)
@@ -92,9 +107,18 @@ async def analyze_rgb(image:UploadFile=File(...)):
     rgb=decode_image(await image.read())
     try: result=get_rgb_engine().analyze_rgb(rgb)
     except ValueError as exc: raise HTTPException(status_code=422,detail=str(exc)) from exc
+    reference=comparable_rgb_reference(result.metrics)
+    if reference is not None:
+        RGBAnalysisEngine.apply_reference_capture_quality(result.metrics,reference)
+        result.metrics['reference_capture_used']=True
+    else:
+        result.metrics['reference_capture_used']=False
     q=result.metrics
     if q.get('capture_quality')=='poor':
-        raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':'Capture quality is too low for a reliable RGB scan. Retake the photo using the guidance below.','capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':q.get('quality_guidance',[])})
+        guidance=q.get('quality_guidance',[])
+        guidance_text=' '.join(guidance)
+        message='Capture quality is too low for a reliable RGB scan.' + (f' {guidance_text}' if guidance_text else ' Please retake the photo.')
+        raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':message,'capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':guidance,'quality_subscores':q.get('quality_subscores',{}),'reference_exposure_delta_ev':q.get('reference_exposure_delta_ev')})
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     RGBAnalysisEngine.save_result(result,out_dir)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='rgb',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
