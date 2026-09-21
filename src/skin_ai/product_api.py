@@ -13,12 +13,13 @@ from skin_ai.uv_engine import UVAnalysisEngine
 from skin_ai.uv_input_validator import UVInputValidator
 from skin_ai.uv_longitudinal import checkpoint_signature, stamp_uv_longitudinal_metadata
 from skin_ai.rgb_engine import RGBAnalysisEngine
+from skin_ai.tracking import get_region, region_options, stamp_tracking_metadata
 
 ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.6.1')
+app=FastAPI(title='Skin AI Product API',version='0.7.0')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
 store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=None; _uv_model_signature=None
@@ -26,6 +27,9 @@ store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=No
 class RoutinePayload(BaseModel):
     morning:list[str]
     evening:list[str]
+
+class SubjectPayload(BaseModel):
+    display_name:str
 
 def get_uv_engine():
     global _uv_engine
@@ -45,15 +49,25 @@ def get_uv_model_signature():
 
 def get_uv_validator():
     global _uv_validator
-    if _uv_validator is None:
-        _uv_validator=UVInputValidator()
+    if _uv_validator is None: _uv_validator=UVInputValidator()
     return _uv_validator
 
 def get_rgb_engine():
     global _rgb_engine
-    if _rgb_engine is None:
-        _rgb_engine=RGBAnalysisEngine()
+    if _rgb_engine is None: _rgb_engine=RGBAnalysisEngine()
     return _rgb_engine
+
+def resolve_tracking(subject_id:str|None, region_code:str|None, modality:str):
+    if not subject_id and not region_code: return None, None
+    if not subject_id or not region_code:
+        raise HTTPException(status_code=422,detail={'code':'tracking_identity_incomplete','message':'Choose both a subject profile and a scan region, or leave both blank for analysis-only.'})
+    subject=store.get_subject(subject_id)
+    if not subject:
+        raise HTTPException(status_code=422,detail={'code':'subject_not_found','message':'Selected subject profile does not exist.'})
+    region=get_region(region_code,modality)
+    if not region:
+        raise HTTPException(status_code=422,detail={'code':'invalid_region','message':f'Region {region_code!r} is not supported for {modality.upper()} scans.'})
+    return subject,region
 
 def public_scan(scan):
     sid=scan['id']
@@ -65,7 +79,21 @@ def public_scan(scan):
 
 @app.get('/health')
 def health():
-    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.6.1'}
+    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.7.0'}
+
+@app.get('/v1/subjects')
+def list_subjects(): return store.list_subjects()
+
+@app.post('/v1/subjects')
+def create_subject(payload:SubjectPayload):
+    clean=' '.join(payload.display_name.strip().split())[:80]
+    if not clean: raise HTTPException(status_code=422,detail='Subject name is required')
+    return store.create_subject(subject_id=uuid.uuid4().hex[:12],display_name=clean,created_at=datetime.now(timezone.utc).isoformat())
+
+@app.get('/v1/regions')
+def regions(modality:str|None=None):
+    if modality not in (None,'uv','rgb'): raise HTTPException(status_code=400,detail='modality must be uv or rgb')
+    return region_options(modality)
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30, modality:str|None=None):
@@ -97,8 +125,11 @@ def decode_image(raw:bytes)->np.ndarray:
 
 def comparable_rgb_reference(current_metrics:dict)->dict|None:
     version=str(current_metrics.get('rgb_engine_version'))
+    tracking_key=current_metrics.get('tracking_series_key')
+    if not tracking_key: return None
     for scan in store.list_scans(limit=100,modality='rgb'):
         m=scan.get('metrics',{})
+        if m.get('tracking_series_key') != tracking_key: continue
         if str(m.get('rgb_engine_version')) != version: continue
         if not (m.get('longitudinal_eligible') is True or (m.get('longitudinal_eligible') is None and m.get('capture_quality')=='good')): continue
         if not isinstance(m.get('skin_luminance_median_0_255'),(int,float)): continue
@@ -108,22 +139,16 @@ def comparable_rgb_reference(current_metrics:dict)->dict|None:
 @app.post('/v1/uv/analyze')
 async def analyze_uv(
     image:UploadFile=File(...),
+    subject_id:str|None=Form(None),
+    region_code:str|None=Form(None),
     subject_label:str|None=Form(None),
     anatomical_site:str|None=Form(None),
 ):
+    subject,region=resolve_tracking(subject_id,region_code,'uv')
     rgb=decode_image(await image.read())
     validation=get_uv_validator().validate(rgb)
     if not validation.accepted:
-        raise HTTPException(status_code=422,detail={
-            'code':'uv_input_validation_failed',
-            'message':'This image does not appear compatible with the current UV fluorescence capture workflow. No UV analysis was run and the image was not saved.',
-            'uv_input_validation_score':validation.score,
-            'validation_flags':validation.flags,
-            'validation_guidance':validation.guidance,
-            'validation_features':validation.features,
-            'validator_version':validation.validator_version,
-            'profile':validation.profile,
-        })
+        raise HTTPException(status_code=422,detail={'code':'uv_input_validation_failed','message':'This image does not appear compatible with the current UV fluorescence capture workflow. No UV analysis was run and the image was not saved.','uv_input_validation_score':validation.score,'validation_flags':validation.flags,'validation_guidance':validation.guidance,'validation_features':validation.features,'validator_version':validation.validator_version,'profile':validation.profile})
     result=get_uv_engine().analyze_rgb(rgb)
     result.metrics['uv_input_validation_version']=validation.validator_version
     result.metrics['uv_input_validation_profile']=validation.profile
@@ -131,34 +156,42 @@ async def analyze_uv(
     result.metrics['uv_input_validation_flags']=validation.flags
     result.metrics['uv_input_validation_scope']=validation.features.get('validation_scope')
     result.metrics['uv_input_validation_does_not_verify_uv']=True
-    stamp_uv_longitudinal_metadata(
-        result.metrics,
-        subject_label=subject_label,
-        anatomical_site=anatomical_site,
-        model_signature=get_uv_model_signature(),
-        validator_version=validation.validator_version,
-        validator_profile=validation.profile,
-    )
+    stamp_tracking_metadata(result.metrics,subject=subject,region=region)
+    legacy_subject=(subject or {}).get('display_name') or subject_label
+    legacy_site=(region or {}).get('label') or anatomical_site
+    stamp_uv_longitudinal_metadata(result.metrics,subject_label=legacy_subject,anatomical_site=legacy_site,model_signature=get_uv_model_signature(),validator_version=validation.validator_version,validator_profile=validation.profile)
+    if not result.metrics.get('tracking_series_key'):
+        result.metrics['uv_longitudinal_eligible']=False
+        result.metrics['uv_longitudinal_reason']='structured_subject_and_region_required'
+        result.metrics['uv_comparison_key']=None
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     UVAnalysisEngine.save_result(result,out_dir); Image.fromarray(rgb).save(out_dir/'original.jpg',quality=92)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='uv',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
     return public_scan(store.get_scan(scan_id))
 
 @app.post('/v1/rgb/analyze')
-async def analyze_rgb(image:UploadFile=File(...)):
+async def analyze_rgb(
+    image:UploadFile=File(...),
+    subject_id:str|None=Form(None),
+    region_code:str|None=Form(None),
+):
+    subject,region=resolve_tracking(subject_id,region_code,'rgb')
     rgb=decode_image(await image.read())
     try: result=get_rgb_engine().analyze_rgb(rgb)
     except ValueError as exc: raise HTTPException(status_code=422,detail=str(exc)) from exc
+    stamp_tracking_metadata(result.metrics,subject=subject,region=region)
     reference=comparable_rgb_reference(result.metrics)
     if reference is not None:
         RGBAnalysisEngine.apply_reference_capture_quality(result.metrics,reference)
         result.metrics['reference_capture_used']=True
     else:
         result.metrics['reference_capture_used']=False
+    if not result.metrics.get('tracking_series_key'):
+        result.metrics['longitudinal_eligible']=False
+        result.metrics['longitudinal_reason']='structured_subject_and_region_required'
     q=result.metrics
     if q.get('capture_quality')=='poor':
-        guidance=q.get('quality_guidance',[])
-        guidance_text=' '.join(guidance)
+        guidance=q.get('quality_guidance',[]); guidance_text=' '.join(guidance)
         message='Capture quality is too low for a reliable RGB scan.' + (f' {guidance_text}' if guidance_text else ' Please retake the photo.')
         raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':message,'capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':guidance,'quality_subscores':q.get('quality_subscores',{}),'reference_exposure_delta_ev':q.get('reference_exposure_delta_ev')})
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
