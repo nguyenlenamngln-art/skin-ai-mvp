@@ -3,12 +3,17 @@ const $$ = q => [...document.querySelectorAll(q)]
 const pct = (x=0) => `${(x*100).toFixed(1)}%`
 const signed = (n, digits=0) => `${n>0?'+':''}${n.toFixed(digits)}`
 const titles = {home:'Your skin, over time.',scan:'New skin scan',history:'Scan history',routine:'Routine tracker'}
-let scans=[], trends=[], latest=null, resultView='combined', scanMode='uv', health={}
+let scans=[], trends=[], latest=null, resultView='combined', scanMode='uv', health={}, rejectedAttempt=null
 
 async function api(path, options={}){
   const r=await fetch(path,options)
   const data=await r.json().catch(()=>({}))
-  if(!r.ok) throw new Error(typeof data.detail==='string'?data.detail:(data.detail?.message||`Request failed (${r.status})`))
+  if(!r.ok){
+    const err=new Error(typeof data.detail==='string'?data.detail:(data.detail?.message||`Request failed (${r.status})`))
+    err.status=r.status
+    err.detail=data.detail
+    throw err
+  }
   return data
 }
 function showError(msg=''){ const el=$('#error'); el.textContent=msg; el.classList.toggle('hidden',!msg) }
@@ -94,7 +99,7 @@ function renderHistory(){
     const summary=s.modality==='rgb'?`${pct(m.redness_area_fraction)} redness · ${pct(m.pigmentation_area_fraction)} pigment`:`${m.porphyrin_component_count_proxy} spots · ${pct(m.artifact_area_fraction)} artifacts`
     return `<button class="historyRow" data-id="${s.id}"><img src="${thumb}"/><div><b>${new Date(s.created_at).toLocaleString()}</b><span>${s.modality.toUpperCase()} · ${s.source_name||'scan'}</span></div><div class="historyStat"><b>${s.modality==='rgb'?(m.capture_quality||'—'):m.porphyrin_component_count_proxy}</b><span>${summary}</span></div><span>›</span></button>`
   }).join(''):'<div class="empty">No scans yet.</div>'
-  $$('.historyRow').forEach(b=>b.onclick=()=>{latest=scans.find(s=>s.id===b.dataset.id);scanMode=latest.modality;resultView='combined';applyModeUI();renderResult();setTab('scan')})
+  $$('.historyRow').forEach(b=>b.onclick=()=>{rejectedAttempt=null;showError('');latest=scans.find(s=>s.id===b.dataset.id);scanMode=latest.modality;resultView='combined';applyModeUI();renderResult();setTab('scan')})
 }
 function viewSrc(scan,view){
   if(view==='original') return scan.media.original
@@ -107,8 +112,30 @@ function viewSrc(scan,view){
   if(view==='porphyrin') return scan.media.porphyrin_mask
   return scan.media.overlay
 }
+function renderRejectedAttempt(){
+  const body=$('#resultBody'), date=$('#resultDate'), badge=$('#compareBadge')
+  const attempt=rejectedAttempt, detail=(attempt?.detail && typeof attempt.detail==='object')?attempt.detail:{}
+  const guidance=Array.isArray(detail.quality_guidance)?detail.quality_guidance:[]
+  const flags=Array.isArray(detail.quality_flags)?detail.quality_flags:[]
+  const score=Number.isFinite(detail.capture_quality_score)?`${detail.capture_quality_score}/100`:'Not measured'
+  const reason=detail.message||attempt?.message||'This capture did not pass the quality gate.'
+  date.textContent='Current attempt'
+  badge.textContent='Capture rejected'
+  badge.className='compareBadge warn'
+  body.className=''
+  body.innerHTML=`
+    <div class="scienceNote"><b>Capture rejected — not saved.</b> ${reason}</div>
+    <div class="analysisMetrics">
+      ${metric('Status','Rejected','not added to History or trends')}
+      ${metric('Capture quality',detail.capture_quality||'poor',`score ${score}`)}
+      ${metric('Issues',flags.length?flags.join(', '):'See guidance','quality gate')}
+    </div>
+    <div class="scienceNote"><b>Retake guidance</b>${guidance.length?`<ul style="margin:8px 0 0 18px;padding:0">${guidance.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Retake with steady focus, even frontal light, and the face centered in frame.</p>'}</div>
+    <div class="scienceNote">The previous saved scan remains in History, but it is intentionally not shown here as the result of this rejected attempt.</div>`
+}
 function renderResult(){
   const body=$('#resultBody'), date=$('#resultDate'), badge=$('#compareBadge')
+  if(rejectedAttempt && rejectedAttempt.mode===scanMode){renderRejectedAttempt();return}
   if(!latest){body.className='empty resultEmpty';body.textContent='Choose a scan type, then capture or upload an image.';date.textContent='Latest scan';badge.classList.add('hidden');return}
   body.className=''; date.textContent=new Date(latest.created_at).toLocaleString()
   const prev=previousSameModality(latest), m=latest.metrics
@@ -174,7 +201,7 @@ function applyModeUI(){
   if(same.length){latest=same[0];resultView='combined'}
   renderResult()
 }
-$$('[data-mode]').forEach(b=>b.onclick=()=>{scanMode=b.dataset.mode;applyModeUI()})
+$$('[data-mode]').forEach(b=>b.onclick=()=>{rejectedAttempt=null;showError('');scanMode=b.dataset.mode;applyModeUI()})
 async function refresh(){
   const [s,t,r,h]=await Promise.all([api('/v1/scans?limit=100'),api('/v1/trends?limit=180'),api('/v1/routine'),api('/health')])
   scans=s;trends=t;health=h
@@ -185,10 +212,18 @@ async function refresh(){
 }
 $('#fileInput').onchange=async e=>{
   const f=e.target.files?.[0]; if(!f)return
-  showError(''); const p=$('#preview');p.src=URL.createObjectURL(f);p.classList.remove('hidden');$('#dropContent').classList.add('hidden');$('#dropzone').classList.add('busy')
+  showError(''); rejectedAttempt=null
+  const p=$('#preview');p.src=URL.createObjectURL(f);p.classList.remove('hidden');$('#dropContent').classList.add('hidden');$('#dropzone').classList.add('busy')
   const fd=new FormData();fd.append('image',f)
-  try{ latest=await api(scanMode==='rgb'?'/v1/rgb/analyze':'/v1/uv/analyze',{method:'POST',body:fd});resultView='combined';await refresh();renderResult() }
-  catch(err){showError(err.message)} finally{$('#dropzone').classList.remove('busy');e.target.value=''}
+  try{
+    latest=await api(scanMode==='rgb'?'/v1/rgb/analyze':'/v1/uv/analyze',{method:'POST',body:fd})
+    rejectedAttempt=null;resultView='combined';await refresh();renderResult()
+  } catch(err){
+    rejectedAttempt={mode:scanMode,filename:f.name,message:err.message,detail:err.detail,status:err.status,at:new Date().toISOString()}
+    const guidance=Array.isArray(err.detail?.quality_guidance)?err.detail.quality_guidance:[]
+    showError([err.message,...guidance].filter(Boolean).join(' '))
+    renderResult()
+  } finally{$('#dropzone').classList.remove('busy');e.target.value=''}
 }
 $('#saveRoutine').onclick=async()=>{
   const btn=$('#saveRoutine'), routine={morning:$('#morning').value.split('\n').map(x=>x.trim()).filter(Boolean),evening:$('#evening').value.split('\n').map(x=>x.trim()).filter(Boolean)}
