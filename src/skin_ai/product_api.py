@@ -3,7 +3,7 @@ import io, os, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
@@ -11,16 +11,17 @@ from pydantic import BaseModel
 from skin_ai.store import ProductStore
 from skin_ai.uv_engine import UVAnalysisEngine
 from skin_ai.uv_input_validator import UVInputValidator
+from skin_ai.uv_longitudinal import checkpoint_signature, stamp_uv_longitudinal_metadata
 from skin_ai.rgb_engine import RGBAnalysisEngine
 
 ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.6.0')
+app=FastAPI(title='Skin AI Product API',version='0.6.1')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
-store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=None
+store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=None; _uv_model_signature=None
 
 class RoutinePayload(BaseModel):
     morning:list[str]
@@ -33,6 +34,14 @@ def get_uv_engine():
             raise HTTPException(status_code=503,detail={'code':'model_missing','message':'UV model checkpoint is not installed.','expected_path':str(MODEL_PATH)})
         _uv_engine=UVAnalysisEngine(MODEL_PATH)
     return _uv_engine
+
+def get_uv_model_signature():
+    global _uv_model_signature
+    if _uv_model_signature is None:
+        if not MODEL_PATH.exists():
+            raise HTTPException(status_code=503,detail={'code':'model_missing','message':'UV model checkpoint is not installed.','expected_path':str(MODEL_PATH)})
+        _uv_model_signature=checkpoint_signature(MODEL_PATH)
+    return _uv_model_signature
 
 def get_uv_validator():
     global _uv_validator
@@ -56,7 +65,7 @@ def public_scan(scan):
 
 @app.get('/health')
 def health():
-    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.6.0'}
+    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.6.1'}
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30, modality:str|None=None):
@@ -97,7 +106,11 @@ def comparable_rgb_reference(current_metrics:dict)->dict|None:
     return None
 
 @app.post('/v1/uv/analyze')
-async def analyze_uv(image:UploadFile=File(...)):
+async def analyze_uv(
+    image:UploadFile=File(...),
+    subject_label:str|None=Form(None),
+    anatomical_site:str|None=Form(None),
+):
     rgb=decode_image(await image.read())
     validation=get_uv_validator().validate(rgb)
     if not validation.accepted:
@@ -118,6 +131,14 @@ async def analyze_uv(image:UploadFile=File(...)):
     result.metrics['uv_input_validation_flags']=validation.flags
     result.metrics['uv_input_validation_scope']=validation.features.get('validation_scope')
     result.metrics['uv_input_validation_does_not_verify_uv']=True
+    stamp_uv_longitudinal_metadata(
+        result.metrics,
+        subject_label=subject_label,
+        anatomical_site=anatomical_site,
+        model_signature=get_uv_model_signature(),
+        validator_version=validation.validator_version,
+        validator_profile=validation.profile,
+    )
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     UVAnalysisEngine.save_result(result,out_dir); Image.fromarray(rgb).save(out_dir/'original.jpg',quality=92)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='uv',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
