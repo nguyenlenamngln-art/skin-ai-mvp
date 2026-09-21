@@ -1,4 +1,23 @@
 // UV input validation V1 UI layer.
+const UV_ISSUE_LABELS={
+  ordinary_frontal_photo_detected:'Normal RGB face photo',
+  very_dark_natural_scene_background:'Dark natural background',
+  natural_scene_dynamic_range:'Natural-photo lighting',
+  natural_scene_contrast:'Scene-like contrast',
+  natural_scene_detail_profile:'Photo-like detail',
+}
+function uvIssueLabel(flag){
+  if(UV_ISSUE_LABELS[flag]) return UV_ISSUE_LABELS[flag]
+  const clean=String(flag||'').replaceAll('_',' ').trim()
+  if(!clean) return 'Input mismatch'
+  return clean.charAt(0).toUpperCase()+clean.slice(1)
+}
+function uvIssueSummary(flags){
+  const labels=[...new Set((flags||[]).map(uvIssueLabel))]
+  if(!labels.length) return 'Wrong input type'
+  return labels.join(' · ')
+}
+
 const baseRenderRejectedAttemptUVV1 = renderRejectedAttempt
 renderRejectedAttempt = function(){
   if(!rejectedAttempt || rejectedAttempt.mode!=='uv') return baseRenderRejectedAttemptUVV1()
@@ -16,7 +35,7 @@ renderRejectedAttempt = function(){
     <div class="analysisMetrics">
       ${metric('Status','Rejected','not added to History or UV trends')}
       ${metric('UV input check',score,detail.profile||'UVFD-like close-up profile')}
-      ${metric('Issues',flags.length?flags.join(', '):'wrong input profile','pre-analysis validation')}
+      ${metric('Issues',uvIssueSummary(flags),'pre-analysis validation')}
     </div>
     <div class="scienceNote"><b>What to do next</b>${guidance.length?`<ul style="margin:8px 0 0 18px;padding:0">${guidance.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Use a direct close-up UV-fluorescence capture from the supported workflow, or switch to Phone RGB for ordinary face photos.</p>'}</div>
     <div class="scienceNote"><b>Validator V${detail.validator_version||'1.0'} limitation.</b> This gate rejects obvious wrong-modality inputs. Passing it does not independently prove that an image was captured under UV illumination.</div>`
