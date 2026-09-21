@@ -115,7 +115,10 @@ async def analyze_rgb(image:UploadFile=File(...)):
         result.metrics['reference_capture_used']=False
     q=result.metrics
     if q.get('capture_quality')=='poor':
-        raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':'Capture quality is too low for a reliable RGB scan. Retake the photo using the guidance below.','capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':q.get('quality_guidance',[]),'quality_subscores':q.get('quality_subscores',{}),'reference_exposure_delta_ev':q.get('reference_exposure_delta_ev')})
+        guidance=q.get('quality_guidance',[])
+        guidance_text=' '.join(guidance)
+        message='Capture quality is too low for a reliable RGB scan.' + (f' {guidance_text}' if guidance_text else ' Please retake the photo.')
+        raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':message,'capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':guidance,'quality_subscores':q.get('quality_subscores',{}),'reference_exposure_delta_ev':q.get('reference_exposure_delta_ev')})
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     RGBAnalysisEngine.save_result(result,out_dir)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='rgb',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
