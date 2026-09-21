@@ -4,6 +4,7 @@ const SESSION_STORAGE_KEY='skin_ai_active_session_id'
 
 function sessionRegionLabel(code){ return trackingRegions.find(r=>r.code===code)?.label || code?.replaceAll('_',' ') || 'Region' }
 function sessionIsActive(){ return !!(activeSession && activeSession.status==='in_progress' && !activeSession.progress?.complete) }
+function sessionIsComplete(){ return !!(activeSession && (activeSession.status==='complete' || activeSession.progress?.complete)) }
 
 function buildSessionUI(){
   const tracking=$('#trackingContext')
@@ -27,17 +28,77 @@ async function startGuidedSession(){
   }catch(e){showError(e.message)}
 }
 
+function clearCompletedSession(){
+  activeSession=null
+  localStorage.removeItem(SESSION_STORAGE_KEY)
+  syncSessionTracking()
+  renderSessionPanel()
+  updateSessionCaptureState()
+}
+
+async function startNewCompletedSession(){
+  clearCompletedSession()
+  await startGuidedSession()
+}
+
+function updateSessionCaptureState(){
+  const dropzone=$('#dropzone'), tips=$('#captureTips'), capture=$('.capture')
+  if(!dropzone || !tips || !capture) return
+  let done=$('#sessionCaptureComplete')
+  if(sessionIsComplete()){
+    dropzone.classList.add('sessionHiddenCapture')
+    tips.classList.add('sessionHiddenCapture')
+    if(!done){
+      done=document.createElement('div')
+      done.id='sessionCaptureComplete'
+      done.className='sessionCaptureComplete'
+      done.innerHTML=`<span class="sessionCompleteIcon">✓</span><div><b>Capture complete</b><small>All required regions are saved. Review the session summary above or start a new session.</small></div>`
+      tips.insertAdjacentElement('afterend',done)
+    }
+  }else{
+    dropzone.classList.remove('sessionHiddenCapture')
+    tips.classList.remove('sessionHiddenCapture')
+    if(done) done.remove()
+  }
+}
+
 function syncSessionTracking(){
-  if(!activeSession) return
-  trackingSubjectId=activeSession.subject_id
-  const next=activeSession.progress?.next_region_code
-  if(next) trackingRegionCode=next
+  if(activeSession){
+    trackingSubjectId=activeSession.subject_id
+    const next=activeSession.progress?.next_region_code
+    if(next) trackingRegionCode=next
+  }
   populateTrackingControls()
   const subject=$('#scanSubjectSelect'), region=$('#scanRegionSelect')
   if(subject) subject.disabled=sessionIsActive()
   if(region) region.disabled=sessionIsActive()
   $$('[data-mode]').forEach(b=>{b.disabled=sessionIsActive()})
+  const next=activeSession?.progress?.next_region_code
   if(next && region){region.value=next}
+  updateSessionCaptureState()
+}
+
+function sessionCompletionActions(){
+  return `<div class="sessionCompletionActions">
+    <button type="button" class="primary" data-session-action="summary">View summary</button>
+    <button type="button" class="secondaryMini" data-session-action="new">Start new session</button>
+    <button type="button" class="secondaryMini" data-session-action="overview">Return to overview</button>
+  </div>`
+}
+
+function bindSessionCompletionActions(){
+  $$('[data-session-action]').forEach(btn=>{
+    btn.onclick=async()=>{
+      const action=btn.dataset.sessionAction
+      if(action==='summary'){
+        $('#sessionBody')?.scrollIntoView({behavior:'smooth',block:'start'})
+      }else if(action==='new'){
+        await startNewCompletedSession()
+      }else if(action==='overview'){
+        setTab('home')
+      }
+    }
+  })
 }
 
 function renderSessionPanel(){
@@ -46,27 +107,39 @@ function renderSessionPanel(){
   if(!btn||!body||!title) return
   if(!activeSession){
     title.textContent='Capture regions in one visit'
-    btn.textContent='Start session';btn.disabled=false
+    btn.textContent='Start session';btn.disabled=false;btn.classList.remove('hidden')
+    btn.onclick=startGuidedSession
     body.innerHTML='<small>UV sessions guide Forehead → Left cheek → Right cheek → Nose → Chin. Phone RGB uses one full-face capture.</small>'
+    updateSessionCaptureState()
     return
   }
   const p=activeSession.progress||{}, plan=activeSession.plan||[], completed=new Set(p.completed_regions||[]), next=p.next_region_code
   const subject=activeSession.subject?.display_name||'Subject'
   title.textContent=`${subject} · ${activeSession.modality.toUpperCase()} session`
-  btn.textContent=p.complete?'Start new session':'Session active';btn.disabled=!p.complete
-  if(p.complete) btn.onclick=()=>{activeSession=null;localStorage.removeItem(SESSION_STORAGE_KEY);syncSessionTracking();renderSessionPanel();startGuidedSession()}
+  if(p.complete){
+    btn.classList.add('hidden')
+  }else{
+    btn.classList.remove('hidden');btn.textContent='Session active';btn.disabled=true
+  }
   const steps=plan.map((code,i)=>{
     const state=completed.has(code)?'done':code===next?'current':'pending'
     const mark=state==='done'?'✓':String(i+1)
     return `<div class="sessionStep ${state}"><i>${mark}</i><span>${sessionRegionLabel(code)}</span></div>`
   }).join('')
-  const summary=p.complete?sessionSummaryHtml(activeSession):`<div class="sessionNext"><b>Next: ${sessionRegionLabel(next)}</b><small>${p.completed_count||0} of ${p.total_count||plan.length} regions complete. Upload the current region below.</small></div>`
+  const summary=p.complete
+    ? `${sessionSummaryHtml(activeSession)}${sessionCompletionActions()}`
+    : `<div class="sessionNext"><b>Next: ${sessionRegionLabel(next)}</b><small>${p.completed_count||0} of ${p.total_count||plan.length} regions complete. Upload the current region below.</small></div>`
   body.innerHTML=`<div class="sessionProgress">${steps}</div>${summary}`
-  if(next){
+  if(p.complete){
+    bindSessionCompletionActions()
+    $('#uploadTitle').textContent='Session complete'
+    $('#uploadHelp').textContent='All required regions are saved.'
+  }else if(next){
     trackingRegionCode=next; populateTrackingControls(); if($('#scanRegionSelect')) $('#scanRegionSelect').value=next
     $('#uploadTitle').textContent=`Capture ${sessionRegionLabel(next)}`
     $('#uploadHelp').textContent=activeSession.modality==='uv'?'Use the same UV device, distance and angle for every region.':'Front-facing full-face photo · neutral light · no beauty filters.'
   }
+  updateSessionCaptureState()
 }
 
 function sessionSummaryHtml(session){
@@ -89,7 +162,8 @@ api=async function(path,options={}){
   const data=await apiSessionBase(path,options)
   if((path==='/v1/uv/analyze'||path==='/v1/rgb/analyze') && data?.session){
     activeSession=data.session
-    localStorage.setItem(SESSION_STORAGE_KEY,activeSession.id)
+    if(sessionIsComplete()) localStorage.removeItem(SESSION_STORAGE_KEY)
+    else localStorage.setItem(SESSION_STORAGE_KEY,activeSession.id)
     syncSessionTracking();renderSessionPanel()
   }
   return data
