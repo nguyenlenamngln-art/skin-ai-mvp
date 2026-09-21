@@ -43,6 +43,27 @@ class ProductStore:
                     created_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_subjects_created_at ON subjects(created_at DESC);
+                CREATE TABLE IF NOT EXISTS scan_sessions (
+                    id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    subject_id TEXT NOT NULL,
+                    modality TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    plan_json TEXT NOT NULL,
+                    session_version TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_scan_sessions_created_at ON scan_sessions(created_at DESC);
+                CREATE TABLE IF NOT EXISTS scan_session_items (
+                    session_id TEXT NOT NULL,
+                    region_code TEXT NOT NULL,
+                    scan_id TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(session_id, region_code),
+                    UNIQUE(scan_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_scan_session_items_session ON scan_session_items(session_id, position);
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,
                     value_json TEXT NOT NULL
@@ -93,6 +114,62 @@ class ProductStore:
             row = con.execute("SELECT * FROM subjects WHERE id=?", (subject_id,)).fetchone()
         return self._subject_row(row) if row else None
 
+    def create_session(self, *, session_id: str, created_at: str, subject_id: str, modality: str, plan: list[str], session_version: str) -> dict[str, Any]:
+        with self.connect() as con:
+            con.execute(
+                "INSERT INTO scan_sessions(id, created_at, completed_at, subject_id, modality, status, plan_json, session_version) VALUES(?,?,?,?,?,?,?,?)",
+                (session_id, created_at, None, subject_id, modality, "in_progress", json.dumps(plan), session_version),
+            )
+        return self.get_session(session_id)
+
+    def list_sessions(self, limit: int = 30) -> list[dict[str, Any]]:
+        with self.connect() as con:
+            rows = con.execute("SELECT * FROM scan_sessions ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        return [self._session_row(r, self._session_items(r["id"])) for r in rows]
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        with self.connect() as con:
+            row = con.execute("SELECT * FROM scan_sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return None
+        return self._session_row(row, self._session_items(session_id))
+
+    def add_session_scan(self, *, session_id: str, region_code: str, scan_id: str, position: int, created_at: str) -> dict[str, Any]:
+        with self.connect() as con:
+            session = con.execute("SELECT * FROM scan_sessions WHERE id=?", (session_id,)).fetchone()
+            if not session:
+                raise ValueError("Session not found")
+            if session["status"] != "in_progress":
+                raise ValueError("Session is not in progress")
+            con.execute(
+                "INSERT INTO scan_session_items(session_id, region_code, scan_id, position, created_at) VALUES(?,?,?,?,?)",
+                (session_id, region_code, scan_id, position, created_at),
+            )
+            count = con.execute("SELECT COUNT(*) FROM scan_session_items WHERE session_id=?", (session_id,)).fetchone()[0]
+            plan = json.loads(session["plan_json"])
+            if count >= len(plan):
+                con.execute("UPDATE scan_sessions SET status='complete', completed_at=? WHERE id=?", (created_at, session_id))
+        return self.get_session(session_id)
+
+    def _session_items(self, session_id: str) -> list[dict[str, Any]]:
+        with self.connect() as con:
+            rows = con.execute(
+                "SELECT i.session_id, i.region_code, i.scan_id, i.position, i.created_at, s.metrics_json, s.source_name FROM scan_session_items i JOIN scans s ON s.id=i.scan_id WHERE i.session_id=? ORDER BY i.position ASC",
+                (session_id,),
+            ).fetchall()
+        out = []
+        for r in rows:
+            out.append({
+                "session_id": r["session_id"],
+                "region_code": r["region_code"],
+                "scan_id": r["scan_id"],
+                "position": r["position"],
+                "created_at": r["created_at"],
+                "source_name": r["source_name"],
+                "metrics": json.loads(r["metrics_json"]),
+            })
+        return out
+
     def trends(self, limit: int = 90, modality: str | None = None) -> list[dict[str, Any]]:
         rows = list(reversed(self.list_scans(limit=limit, modality=modality)))
         out = []
@@ -117,6 +194,7 @@ class ProductStore:
                 "tracking_region_code": m.get("tracking_region_code"),
                 "tracking_region_label": m.get("tracking_region_label"),
                 "tracking_series_key": tracking_key,
+                "scan_session_id": m.get("scan_session_id"),
             }
             if row["modality"] == "uv":
                 base.update({
@@ -178,3 +256,17 @@ class ProductStore:
     @staticmethod
     def _subject_row(row: sqlite3.Row) -> dict[str, Any]:
         return {"id": row["id"], "display_name": row["display_name"], "created_at": row["created_at"]}
+
+    @staticmethod
+    def _session_row(row: sqlite3.Row, items: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "created_at": row["created_at"],
+            "completed_at": row["completed_at"],
+            "subject_id": row["subject_id"],
+            "modality": row["modality"],
+            "status": row["status"],
+            "plan": json.loads(row["plan_json"]),
+            "session_version": row["session_version"],
+            "items": items,
+        }
