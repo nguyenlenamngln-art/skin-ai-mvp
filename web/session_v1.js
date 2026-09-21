@@ -41,6 +41,28 @@ async function startNewCompletedSession(){
   await startGuidedSession()
 }
 
+function updateCompletedTrackingContext(){
+  const tracking=$('#trackingContext')
+  if(!tracking) return
+  let summary=$('#sessionTrackingReadOnly')
+  if(sessionIsComplete()){
+    tracking.classList.add('sessionTrackingComplete')
+    const subject=activeSession?.subject?.display_name||'Subject'
+    const count=activeSession?.progress?.total_count||activeSession?.plan?.length||activeSession?.items?.length||0
+    const modality=activeSession?.modality==='uv'?'UV':'Phone RGB'
+    if(!summary){
+      summary=document.createElement('div')
+      summary.id='sessionTrackingReadOnly'
+      summary.className='sessionTrackingReadOnly'
+      tracking.appendChild(summary)
+    }
+    summary.innerHTML=`<span class="eyebrow">TRACKING CONTEXT</span><b>${subject} · ${count}-region ${modality} session</b><small>Session identity is locked for this completed visit.</small>`
+  }else{
+    tracking.classList.remove('sessionTrackingComplete')
+    if(summary) summary.remove()
+  }
+}
+
 function updateSessionCaptureState(){
   const dropzone=$('#dropzone'), tips=$('#captureTips'), capture=$('.capture')
   if(!dropzone || !tips || !capture) return
@@ -48,18 +70,20 @@ function updateSessionCaptureState(){
   if(sessionIsComplete()){
     dropzone.classList.add('sessionHiddenCapture')
     tips.classList.add('sessionHiddenCapture')
+    const count=activeSession?.progress?.total_count||activeSession?.plan?.length||activeSession?.items?.length||0
     if(!done){
       done=document.createElement('div')
       done.id='sessionCaptureComplete'
       done.className='sessionCaptureComplete'
-      done.innerHTML=`<span class="sessionCompleteIcon">✓</span><div><b>Capture complete</b><small>All required regions are saved. Review the session summary above or start a new session.</small></div>`
       tips.insertAdjacentElement('afterend',done)
     }
+    done.innerHTML=`<span class="sessionCompleteIcon">✓</span><b>All ${count} capture${count===1?'':'s'} saved</b>`
   }else{
     dropzone.classList.remove('sessionHiddenCapture')
     tips.classList.remove('sessionHiddenCapture')
     if(done) done.remove()
   }
+  updateCompletedTrackingContext()
 }
 
 function syncSessionTracking(){
