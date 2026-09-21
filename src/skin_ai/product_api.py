@@ -14,12 +14,13 @@ from skin_ai.uv_input_validator import UVInputValidator
 from skin_ai.uv_longitudinal import checkpoint_signature, stamp_uv_longitudinal_metadata
 from skin_ai.rgb_engine import RGBAnalysisEngine
 from skin_ai.tracking import get_region, region_options, stamp_tracking_metadata
+from skin_ai.session_plan import SESSION_VERSION, next_region, session_plan, session_progress
 
 ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.7.0')
+app=FastAPI(title='Skin AI Product API',version='0.8.0')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
 store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=None; _uv_model_signature=None
@@ -30,6 +31,10 @@ class RoutinePayload(BaseModel):
 
 class SubjectPayload(BaseModel):
     display_name:str
+
+class SessionPayload(BaseModel):
+    subject_id:str
+    modality:str
 
 def get_uv_engine():
     global _uv_engine
@@ -69,6 +74,28 @@ def resolve_tracking(subject_id:str|None, region_code:str|None, modality:str):
         raise HTTPException(status_code=422,detail={'code':'invalid_region','message':f'Region {region_code!r} is not supported for {modality.upper()} scans.'})
     return subject,region
 
+def resolve_session_tracking(session_id:str|None, modality:str, subject_id:str|None, region_code:str|None):
+    if not session_id:
+        subject,region=resolve_tracking(subject_id,region_code,modality)
+        return None,subject,region,None
+    session=store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=422,detail={'code':'session_not_found','message':'Scan session was not found.'})
+    if session['status']!='in_progress':
+        raise HTTPException(status_code=422,detail={'code':'session_not_active','message':'This scan session is already complete.'})
+    if session['modality']!=modality:
+        raise HTTPException(status_code=422,detail={'code':'session_modality_mismatch','message':f'This session is for {session["modality"].upper()} scans.'})
+    completed=[x['region_code'] for x in session['items']]
+    expected=next_region(session['plan'],completed)
+    if expected is None:
+        raise HTTPException(status_code=422,detail={'code':'session_complete','message':'All regions in this session are already complete.'})
+    if subject_id and subject_id!=session['subject_id']:
+        raise HTTPException(status_code=422,detail={'code':'session_subject_mismatch','message':'Selected subject does not match the active session.'})
+    if region_code and region_code!=expected:
+        raise HTTPException(status_code=422,detail={'code':'session_region_mismatch','message':f'The next required region is {expected}.'})
+    subject,region=resolve_tracking(session['subject_id'],expected,modality)
+    return session,subject,region,session['plan'].index(expected)
+
 def public_scan(scan):
     sid=scan['id']
     if scan['modality']=='rgb':
@@ -77,9 +104,20 @@ def public_scan(scan):
         media={'original':f'/media/{sid}/original.jpg','overlay':f'/media/{sid}/overlay.png','artifact_mask':f'/media/{sid}/artifact_mask.png','porphyrin_mask':f'/media/{sid}/porphyrin_mask.png','dark_mask':f'/media/{sid}/dark_artifact_mask.png','light_mask':f'/media/{sid}/light_artifact_mask.png'}
     return {**scan,'media':media}
 
+def public_session(session):
+    if not session: return None
+    subject=store.get_subject(session['subject_id'])
+    completed=[x['region_code'] for x in session['items']]
+    progress=session_progress(session['plan'],completed)
+    items=[]
+    for item in session['items']:
+        scan=store.get_scan(item['scan_id'])
+        items.append({**item,'scan':public_scan(scan) if scan else None})
+    return {**session,'subject':subject,'progress':progress,'items':items}
+
 @app.get('/health')
 def health():
-    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.7.0'}
+    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'session_version':SESSION_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.8.0'}
 
 @app.get('/v1/subjects')
 def list_subjects(): return store.list_subjects()
@@ -94,6 +132,28 @@ def create_subject(payload:SubjectPayload):
 def regions(modality:str|None=None):
     if modality not in (None,'uv','rgb'): raise HTTPException(status_code=400,detail='modality must be uv or rgb')
     return region_options(modality)
+
+@app.post('/v1/sessions')
+def create_session(payload:SessionPayload):
+    modality=payload.modality.lower().strip()
+    if modality not in ('uv','rgb'):
+        raise HTTPException(status_code=422,detail='modality must be uv or rgb')
+    subject=store.get_subject(payload.subject_id)
+    if not subject:
+        raise HTTPException(status_code=422,detail={'code':'subject_not_found','message':'Choose a valid subject profile before starting a session.'})
+    plan=session_plan(modality)
+    session=store.create_session(session_id=uuid.uuid4().hex[:16],created_at=datetime.now(timezone.utc).isoformat(),subject_id=subject['id'],modality=modality,plan=plan,session_version=SESSION_VERSION)
+    return public_session(session)
+
+@app.get('/v1/sessions')
+def list_sessions(limit:int=30):
+    return [public_session(x) for x in store.list_sessions(min(max(limit,1),100))]
+
+@app.get('/v1/sessions/{session_id}')
+def get_session(session_id:str):
+    session=store.get_session(session_id)
+    if not session: raise HTTPException(status_code=404,detail='Session not found')
+    return public_session(session)
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30, modality:str|None=None):
@@ -141,10 +201,11 @@ async def analyze_uv(
     image:UploadFile=File(...),
     subject_id:str|None=Form(None),
     region_code:str|None=Form(None),
+    session_id:str|None=Form(None),
     subject_label:str|None=Form(None),
     anatomical_site:str|None=Form(None),
 ):
-    subject,region=resolve_tracking(subject_id,region_code,'uv')
+    session,subject,region,session_position=resolve_session_tracking(session_id,'uv',subject_id,region_code)
     rgb=decode_image(await image.read())
     validation=get_uv_validator().validate(rgb)
     if not validation.accepted:
@@ -164,18 +225,27 @@ async def analyze_uv(
         result.metrics['uv_longitudinal_eligible']=False
         result.metrics['uv_longitudinal_reason']='structured_subject_and_region_required'
         result.metrics['uv_comparison_key']=None
+    if session:
+        result.metrics['scan_session_id']=session['id']
+        result.metrics['scan_session_version']=session['session_version']
+        result.metrics['scan_session_position']=session_position
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     UVAnalysisEngine.save_result(result,out_dir); Image.fromarray(rgb).save(out_dir/'original.jpg',quality=92)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='uv',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
-    return public_scan(store.get_scan(scan_id))
+    response=public_scan(store.get_scan(scan_id))
+    if session:
+        updated=store.add_session_scan(session_id=session['id'],region_code=region['code'],scan_id=scan_id,position=session_position,created_at=created_at)
+        response['session']=public_session(updated)
+    return response
 
 @app.post('/v1/rgb/analyze')
 async def analyze_rgb(
     image:UploadFile=File(...),
     subject_id:str|None=Form(None),
     region_code:str|None=Form(None),
+    session_id:str|None=Form(None),
 ):
-    subject,region=resolve_tracking(subject_id,region_code,'rgb')
+    session,subject,region,session_position=resolve_session_tracking(session_id,'rgb',subject_id,region_code)
     rgb=decode_image(await image.read())
     try: result=get_rgb_engine().analyze_rgb(rgb)
     except ValueError as exc: raise HTTPException(status_code=422,detail=str(exc)) from exc
@@ -194,10 +264,18 @@ async def analyze_rgb(
         guidance=q.get('quality_guidance',[]); guidance_text=' '.join(guidance)
         message='Capture quality is too low for a reliable RGB scan.' + (f' {guidance_text}' if guidance_text else ' Please retake the photo.')
         raise HTTPException(status_code=422,detail={'code':'capture_quality_failed','message':message,'capture_quality':q.get('capture_quality'),'capture_quality_score':q.get('capture_quality_score'),'quality_flags':q.get('quality_flags',[]),'quality_guidance':guidance,'quality_subscores':q.get('quality_subscores',{}),'reference_exposure_delta_ev':q.get('reference_exposure_delta_ev')})
+    if session:
+        result.metrics['scan_session_id']=session['id']
+        result.metrics['scan_session_version']=session['session_version']
+        result.metrics['scan_session_position']=session_position
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     RGBAnalysisEngine.save_result(result,out_dir)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='rgb',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
-    return public_scan(store.get_scan(scan_id))
+    response=public_scan(store.get_scan(scan_id))
+    if session:
+        updated=store.add_session_scan(session_id=session['id'],region_code=region['code'],scan_id=scan_id,position=session_position,created_at=created_at)
+        response['session']=public_session(updated)
+    return response
 
 if WEB_DIR.exists():
     app.mount('/app',StaticFiles(directory=WEB_DIR),name='app-assets')
