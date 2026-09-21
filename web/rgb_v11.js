@@ -27,10 +27,24 @@ function previousRgbAnyVersion(scan){
   const same=scansOf('rgb'), i=same.findIndex(s=>s.id===scan.id)
   return i>=0 && i<same.length-1 ? same[i+1] : null
 }
-function rgbBaselineReason(scan){
-  const prior=previousRgbAnyVersion(scan)
-  if(!prior) return 'first_rgb_scan'
-  return rgbVersion(prior)!==rgbVersion(scan) ? 'analysis_version_changed' : 'no_same_version_prior'
+
+// Make every existing overview/result calculation use a same-version prior for RGB.
+const basePreviousSameModalityV111 = previousSameModality
+previousSameModality = function(scan){
+  if(scan?.modality==='rgb') return previousComparableRgb(scan)
+  return basePreviousSameModalityV111(scan)
+}
+
+const baseRenderV111 = render
+render = function(){
+  baseRenderV111()
+  if(latest?.modality==='rgb'){
+    const comparable=previousComparableRgb(latest), priorAny=previousRgbAnyVersion(latest)
+    $('#latestCopy').textContent=`Phone ${rgbVersionLabel(latest)} baseline · capture quality: ${latest.metrics.capture_quality}.`
+    if(!comparable && priorAny && rgbVersion(priorAny)!==rgbVersion(latest)){
+      $('#insightText').textContent=`Analysis changed from ${rgbVersionLabel(priorAny)} to ${rgbVersionLabel(latest)}. This scan starts a new baseline; cross-version deltas are intentionally hidden.`
+    }
+  }
 }
 
 const baseRenderTrendV111 = renderTrend
@@ -47,7 +61,6 @@ renderTrend = function(){
   svg.innerHTML=`<line x1="20" y1="140" x2="580" y2="140" stroke="#d8dbd3"/><polyline points="${pts}" fill="none" stroke="#496956" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`
 }
 
-const baseRenderHistoryV111 = renderHistory
 renderHistory = function(){
   $('#historyTitle').textContent=`${scans.length} saved scans`
   $('#historyList').innerHTML=scans.length?scans.map(s=>{
