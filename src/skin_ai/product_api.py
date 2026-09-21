@@ -16,7 +16,7 @@ ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.4.0')
+app=FastAPI(title='Skin AI Product API',version='0.4.1')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
 store=ProductStore(DB_PATH); _uv_engine=None; _rgb_engine=None
@@ -44,6 +44,7 @@ def public_scan(scan):
     if scan['modality']=='rgb':
         media={
             'original':f'/media/{sid}/original.jpg',
+            'skin_region':f'/media/{sid}/skin_region.png',
             'overlay':f'/media/{sid}/rgb_overlay.png',
             'redness_map':f'/media/{sid}/redness_map.png',
             'pigmentation_map':f'/media/{sid}/pigmentation_map.png',
@@ -66,9 +67,10 @@ def health():
         'uv_model_available':MODEL_PATH.exists(),
         'model_available':MODEL_PATH.exists(),
         'rgb_engine_available':True,
+        'rgb_engine_version':RGBAnalysisEngine.VERSION,
         'model_path':str(MODEL_PATH),
         'data_dir':str(DATA_DIR),
-        'api_version':'0.4.0'
+        'api_version':'0.4.1'
     }
 
 @app.get('/v1/scans')
