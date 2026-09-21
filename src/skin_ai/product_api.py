@@ -10,16 +10,17 @@ from PIL import Image
 from pydantic import BaseModel
 from skin_ai.store import ProductStore
 from skin_ai.uv_engine import UVAnalysisEngine
+from skin_ai.uv_input_validator import UVInputValidator
 from skin_ai.rgb_engine import RGBAnalysisEngine
 
 ROOT=Path(__file__).resolve().parents[2]
 DATA_DIR=Path(os.environ.get('SKIN_AI_DATA_DIR',ROOT/'data/product'))
 MODEL_PATH=Path(os.environ.get('UVFD_MODEL_PATH',ROOT/'models/uvfd_unet_v2_best.pt'))
 SCAN_DIR=DATA_DIR/'scans'; DB_PATH=DATA_DIR/'skin_ai.db'; WEB_DIR=ROOT/'web';SCAN_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='Skin AI Product API',version='0.5.1')
+app=FastAPI(title='Skin AI Product API',version='0.6.0')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in os.environ.get('SKIN_AI_CORS','http://localhost:8000').split(',')],allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.mount('/media',StaticFiles(directory=SCAN_DIR),name='media')
-store=ProductStore(DB_PATH); _uv_engine=None; _rgb_engine=None
+store=ProductStore(DB_PATH); _uv_engine=None; _uv_validator=None; _rgb_engine=None
 
 class RoutinePayload(BaseModel):
     morning:list[str]
@@ -32,6 +33,12 @@ def get_uv_engine():
             raise HTTPException(status_code=503,detail={'code':'model_missing','message':'UV model checkpoint is not installed.','expected_path':str(MODEL_PATH)})
         _uv_engine=UVAnalysisEngine(MODEL_PATH)
     return _uv_engine
+
+def get_uv_validator():
+    global _uv_validator
+    if _uv_validator is None:
+        _uv_validator=UVInputValidator()
+    return _uv_validator
 
 def get_rgb_engine():
     global _rgb_engine
@@ -49,7 +56,7 @@ def public_scan(scan):
 
 @app.get('/health')
 def health():
-    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.5.1'}
+    return {'status':'ok','uv_model_available':MODEL_PATH.exists(),'model_available':MODEL_PATH.exists(),'uv_input_validator_available':True,'uv_input_validator_version':UVInputValidator.VERSION,'uv_input_profile':UVInputValidator.PROFILE,'rgb_engine_available':True,'rgb_engine_version':RGBAnalysisEngine.VERSION,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION,'model_path':str(MODEL_PATH),'data_dir':str(DATA_DIR),'api_version':'0.6.0'}
 
 @app.get('/v1/scans')
 def list_scans(limit:int=30, modality:str|None=None):
@@ -80,11 +87,6 @@ def decode_image(raw:bytes)->np.ndarray:
     except Exception as exc: raise HTTPException(status_code=400,detail='Invalid image') from exc
 
 def comparable_rgb_reference(current_metrics:dict)->dict|None:
-    """Nearest saved good RGB scan that can act as an exposure reference.
-
-    Old capture-protocol scans without luminance diagnostics are intentionally
-    skipped; they cannot provide a reliable per-person exposure reference.
-    """
     version=str(current_metrics.get('rgb_engine_version'))
     for scan in store.list_scans(limit=100,modality='rgb'):
         m=scan.get('metrics',{})
@@ -96,7 +98,26 @@ def comparable_rgb_reference(current_metrics:dict)->dict|None:
 
 @app.post('/v1/uv/analyze')
 async def analyze_uv(image:UploadFile=File(...)):
-    rgb=decode_image(await image.read()); result=get_uv_engine().analyze_rgb(rgb)
+    rgb=decode_image(await image.read())
+    validation=get_uv_validator().validate(rgb)
+    if not validation.accepted:
+        raise HTTPException(status_code=422,detail={
+            'code':'uv_input_validation_failed',
+            'message':'This image does not appear compatible with the current UV fluorescence capture workflow. No UV analysis was run and the image was not saved.',
+            'uv_input_validation_score':validation.score,
+            'validation_flags':validation.flags,
+            'validation_guidance':validation.guidance,
+            'validation_features':validation.features,
+            'validator_version':validation.validator_version,
+            'profile':validation.profile,
+        })
+    result=get_uv_engine().analyze_rgb(rgb)
+    result.metrics['uv_input_validation_version']=validation.validator_version
+    result.metrics['uv_input_validation_profile']=validation.profile
+    result.metrics['uv_input_validation_score']=validation.score
+    result.metrics['uv_input_validation_flags']=validation.flags
+    result.metrics['uv_input_validation_scope']=validation.features.get('validation_scope')
+    result.metrics['uv_input_validation_does_not_verify_uv']=True
     scan_id=uuid.uuid4().hex[:16]; created_at=datetime.now(timezone.utc).isoformat(); out_dir=SCAN_DIR/scan_id
     UVAnalysisEngine.save_result(result,out_dir); Image.fromarray(rgb).save(out_dir/'original.jpg',quality=92)
     store.add_scan(scan_id=scan_id,created_at=created_at,modality='uv',source_name=image.filename,metrics=result.metrics,media_dir=str(out_dir))
