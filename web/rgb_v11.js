@@ -24,6 +24,8 @@ function previousRgbAnyVersion(scan){
   const same=scansOf('rgb'), i=same.findIndex(s=>s.id===scan.id)
   return i>=0 && i<same.length-1 ? same[i+1] : null
 }
+function scoreDisplay(value){ return Number.isFinite(value)?`${Math.round(value)}/100`:'Not measured' }
+function scoreNote(value, fallback){ return Number.isFinite(value)?fallback:'not available in this capture protocol' }
 
 const basePreviousSameModalityV12 = previousSameModality
 previousSameModality = function(scan){ if(scan?.modality==='rgb') return previousComparableRgb(scan); return basePreviousSameModalityV12(scan) }
@@ -64,11 +66,12 @@ renderHistory = function(){
     const score=s.modality==='rgb' && Number.isFinite(m.capture_quality_score)?` ${m.capture_quality_score}/100`:''
     return `<button class="historyRow" data-id="${s.id}"><img src="${thumb}"/><div><b>${new Date(s.created_at).toLocaleString()}</b><span>${s.modality.toUpperCase()}${version}${eligibility} · ${s.source_name||'scan'}</span></div><div class="historyStat"><b>${s.modality==='rgb'?(m.capture_quality||'—')+score:m.porphyrin_component_count_proxy}</b><span>${summary}</span></div><span>›</span></button>`
   }).join(''):'<div class="empty">No scans yet.</div>'
-  $$('.historyRow').forEach(b=>b.onclick=()=>{latest=scans.find(s=>s.id===b.dataset.id);scanMode=latest.modality;resultView='combined';applyModeUI();renderResult();setTab('scan')})
+  $$('.historyRow').forEach(b=>b.onclick=()=>{rejectedAttempt=null;showError('');latest=scans.find(s=>s.id===b.dataset.id);scanMode=latest.modality;resultView='combined';applyModeUI();renderResult();setTab('scan')})
 }
 
 const baseRenderResultV12 = renderResult
 renderResult = function(){
+  if(rejectedAttempt && rejectedAttempt.mode===scanMode) return baseRenderResultV12()
   if(!latest || latest.modality!=='rgb') return baseRenderResultV12()
   const body=$('#resultBody'), date=$('#resultDate'), badge=$('#compareBadge')
   body.className=''; date.textContent=new Date(latest.created_at).toLocaleString()
@@ -84,10 +87,11 @@ renderResult = function(){
   const tabs=[['original','Original'],['skin','Skin region'],['redness','Redness'],['pigmentation','Pigment'],['combined','Combined']]
   const deltaRed=prev?deltaText(m.redness_area_fraction,prev.metrics.redness_area_fraction,'pct'):''
   const deltaPigment=prev?deltaText(m.pigmentation_area_fraction,prev.metrics.pigmentation_area_fraction,'pct'):''
-  const score=Number.isFinite(m.capture_quality_score)?`${m.capture_quality_score}/100`:'—'
-  const lighting=Math.round(m.quality_subscores?.lighting||0)
-  const segmentation=Math.round(m.quality_subscores?.segmentation||0)
-  const ev=Number.isFinite(m.reference_exposure_delta_ev)?`${m.reference_exposure_delta_ev>0?'+':''}${m.reference_exposure_delta_ev.toFixed(2)} EV vs baseline`:(m.reference_capture_used===false?'no reference yet':'absolute exposure check')
+  const score=Number.isFinite(m.capture_quality_score)?`${m.capture_quality_score}/100`:'Not measured'
+  const framing=m.quality_subscores?.framing
+  const lighting=m.quality_subscores?.lighting
+  const segmentation=m.quality_subscores?.segmentation
+  const ev=Number.isFinite(m.reference_exposure_delta_ev)?`${m.reference_exposure_delta_ev>0?'+':''}${m.reference_exposure_delta_ev.toFixed(2)} EV vs baseline`:(m.reference_capture_used===false?'no reference yet':Number.isFinite(lighting)?'absolute exposure check':'not measured by this protocol')
   const guidance=(m.quality_guidance||[]).map(x=>`<li>${x}</li>`).join('')
   const qualityNote=eligible?'Eligible for longitudinal comparison.':'Saved for review only; excluded from longitudinal deltas and trends.'
   body.innerHTML=`
@@ -98,9 +102,9 @@ renderResult = function(){
       ${metric('Pigmented area',pct(m.pigmentation_area_fraction),'relative analyzed skin',deltaPigment)}
       ${metric('Texture index',(m.texture_index_proxy||0).toFixed(3),'luminance high-frequency proxy')}
       ${metric('Capture quality',m.capture_quality||'—',`score ${score}`)}
-      ${metric('Framing',`${Math.round(m.quality_subscores?.framing||0)}/100`,'face size in frame')}
-      ${metric('Lighting',`${lighting}/100`,ev)}
-      ${metric('Segmentation',`${segmentation}/100`,'skin-boundary stability')}
+      ${metric('Framing',scoreDisplay(framing),scoreNote(framing,'face size in frame'))}
+      ${metric('Lighting',scoreDisplay(lighting),Number.isFinite(lighting)?ev:'not available in this capture protocol')}
+      ${metric('Segmentation',scoreDisplay(segmentation),scoreNote(segmentation,'skin-boundary stability'))}
     </div>
     <div class="scienceNote"><b>Capture protocol ${m.capture_protocol_version||'legacy'}.</b> ${qualityNote}${guidance?`<ul style="margin:8px 0 0 18px;padding:0">${guidance}</ul>`:''}</div>
     <div class="scienceNote"><b>Phone ${rgbVersionLabel(latest)} research measurement.</b> RGB deltas and trends only use same-version, good-quality captures. These remain relative visible-light proxies, not diagnoses or substitutes for polarized/UV imaging.</div>`
