@@ -15,7 +15,18 @@ RUN apt-get update \
 COPY requirements.deploy.txt ./requirements.deploy.txt
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.deploy.txt \
-    && python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+    && python -m pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && python - <<'PY'
+import cv2
+from pathlib import Path
+assert hasattr(cv2, 'CascadeClassifier'), f'OpenCV missing CascadeClassifier: {getattr(cv2, "__version__", "unknown")}'
+root=Path(cv2.data.haarcascades)
+xml=root/'haarcascade_frontalface_default.xml'
+assert xml.exists(), f'Haar cascade missing: {xml}'
+detector=cv2.CascadeClassifier(str(xml))
+assert not detector.empty(), f'Unable to load Haar cascade: {xml}'
+print('OpenCV face detector OK', cv2.__version__, xml)
+PY
 
 COPY . .
 RUN mkdir -p /data/product /data/models

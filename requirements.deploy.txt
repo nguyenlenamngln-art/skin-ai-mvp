@@ -1,7 +1,7 @@
 numpy>=1.26
 pandas>=2.2
 Pillow>=10.0
-opencv-python-headless>=4.10
+opencv-python-headless==4.10.0.84
 scikit-learn>=1.5
 requests>=2.32
 fastapi>=0.115
