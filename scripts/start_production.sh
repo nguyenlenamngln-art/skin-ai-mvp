@@ -25,5 +25,5 @@ else
   echo "UV checkpoint not configured; starting RGB-capable beta with UV unavailable."
 fi
 
-echo "RGB capture protocol V1.2: handheld phone calibration enabled."
-exec python -m uvicorn skin_ai.product_api_mobile_v12:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1
+echo "RGB capture protocol V1.3: phone framing and segmentation calibration enabled."
+exec python -m uvicorn skin_ai.product_api_mobile_v13:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1
