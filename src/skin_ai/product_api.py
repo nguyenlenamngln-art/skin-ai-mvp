@@ -277,6 +277,21 @@ async def analyze_rgb(
         response['session']=public_session(updated)
     return response
 
+@app.post('/v1/rgb/capture-check')
+async def rgb_capture_check(image:UploadFile=File(...)):
+    """Low-resolution, non-persistent face-size check for live guidance."""
+    rgb=decode_image(await image.read())
+    engine=get_rgb_engine()
+    face=engine._detect_largest_face(engine.face_detector,rgb)
+    if face is None:
+        return {'face_detected':False,'distance_state':'no_face','distance_label':'Center face','face_area_fraction':0.0,'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION}
+    h,w=rgb.shape[:2]; x,y,fw,fh=face
+    area=float((fw*fh)/max(1,h*w))
+    if area<0.18: state,label='move_closer','Move closer'
+    elif area>0.60: state,label='move_back','Move back'
+    else: state,label='good','Distance good'
+    return {'face_detected':True,'distance_state':state,'distance_label':label,'face_area_fraction':round(area,4),'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION}
+
 if WEB_DIR.exists():
     app.mount('/app',StaticFiles(directory=WEB_DIR),name='app-assets')
     app.mount('/',StaticFiles(directory=WEB_DIR,html=True),name='web')
