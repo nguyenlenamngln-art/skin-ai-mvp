@@ -187,3 +187,20 @@ async def rgb_capture_check(image: product_api.UploadFile = product_api.File(...
         "face_area_fraction": round(area, 4),
         "capture_protocol_version": _CAPTURE_PROTOCOL_VERSION,
     }
+
+
+def _prioritize_capture_check_route() -> None:
+    """Keep the API route ahead of the root StaticFiles catch-all mount."""
+    routes = app.router.routes
+    capture_route = next((r for r in routes if getattr(r, "path", None) == "/v1/rgb/capture-check" and "POST" in getattr(r, "methods", set())), None)
+    if capture_route is None:
+        return
+    routes.remove(capture_route)
+    root_mount_index = next(
+        (i for i, route in enumerate(routes) if getattr(route, "path", None) == "/" and route.__class__.__name__ == "Mount"),
+        len(routes),
+    )
+    routes.insert(root_mount_index, capture_route)
+
+
+_prioritize_capture_check_route()
