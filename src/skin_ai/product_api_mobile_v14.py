@@ -132,7 +132,8 @@ RGBAnalysisEngine._quality = staticmethod(_mobile_quality)
 RGBAnalysisEngine._reclassify_quality = classmethod(lambda cls, metrics: _classify_v14(metrics))
 RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION = _CAPTURE_PROTOCOL_VERSION
 
-# Import after calibration so all API handlers use V1.4 classification.
+# Import after calibration so all API handlers, including the core live
+# distance endpoint, use capture protocol V1.4 from process start.
 import skin_ai.product_api as product_api  # noqa: E402
 
 _ORIGINAL_RESOLVE_TRACKING = product_api.resolve_tracking
@@ -154,53 +155,3 @@ def _resolve_tracking_v14(subject_id, region_code, modality):
 
 product_api.resolve_tracking = _resolve_tracking_v14
 app = product_api.app
-
-
-@app.post('/v1/rgb/capture-check')
-async def rgb_capture_check(image: product_api.UploadFile = product_api.File(...)):
-    """Low-resolution, non-persistent face-size check for live guidance."""
-    rgb = product_api.decode_image(await image.read())
-    engine = product_api.get_rgb_engine()
-    face = engine._detect_largest_face(engine.face_detector, rgb)
-    if face is None:
-        return {
-            "face_detected": False,
-            "distance_state": "no_face",
-            "distance_label": "Center face",
-            "face_area_fraction": 0.0,
-            "capture_protocol_version": _CAPTURE_PROTOCOL_VERSION,
-        }
-
-    h, w = rgb.shape[:2]
-    x, y, fw, fh = face
-    area = float((fw * fh) / max(1, h * w))
-    if area < 0.18:
-        state, label = "move_closer", "Move closer"
-    elif area > 0.60:
-        state, label = "move_back", "Move back"
-    else:
-        state, label = "good", "Distance good"
-    return {
-        "face_detected": True,
-        "distance_state": state,
-        "distance_label": label,
-        "face_area_fraction": round(area, 4),
-        "capture_protocol_version": _CAPTURE_PROTOCOL_VERSION,
-    }
-
-
-def _prioritize_capture_check_route() -> None:
-    """Keep the API route ahead of the root StaticFiles catch-all mount."""
-    routes = app.router.routes
-    capture_route = next((r for r in routes if getattr(r, "path", None) == "/v1/rgb/capture-check" and "POST" in getattr(r, "methods", set())), None)
-    if capture_route is None:
-        return
-    routes.remove(capture_route)
-    root_mount_index = next(
-        (i for i, route in enumerate(routes) if getattr(route, "path", None) == "/" and route.__class__.__name__ == "Mount"),
-        len(routes),
-    )
-    routes.insert(root_mount_index, capture_route)
-
-
-_prioritize_capture_check_route()
