@@ -1,5 +1,5 @@
-const CACHE='skin-ai-beta-v12';
-const CORE=['/','/app/styles.css','/app/app.js','/app/capture_guidance_mobile_v12.js?v=12'];
+const CACHE='skin-ai-beta-v13';
+const CORE=['/','/app/styles.css','/app/app.js','/app/capture_guidance_mobile_v12.js?v=12','/app/mobile_ux_v11.js?v=13'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).catch(()=>{}));
   self.skipWaiting();
