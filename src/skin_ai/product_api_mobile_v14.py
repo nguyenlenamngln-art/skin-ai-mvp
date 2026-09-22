@@ -154,3 +154,36 @@ def _resolve_tracking_v14(subject_id, region_code, modality):
 
 product_api.resolve_tracking = _resolve_tracking_v14
 app = product_api.app
+
+
+@app.post('/v1/rgb/capture-check')
+async def rgb_capture_check(image: product_api.UploadFile = product_api.File(...)):
+    """Low-resolution, non-persistent face-size check for live guidance."""
+    rgb = product_api.decode_image(await image.read())
+    engine = product_api.get_rgb_engine()
+    face = engine._detect_largest_face(engine.face_detector, rgb)
+    if face is None:
+        return {
+            "face_detected": False,
+            "distance_state": "no_face",
+            "distance_label": "Center face",
+            "face_area_fraction": 0.0,
+            "capture_protocol_version": _CAPTURE_PROTOCOL_VERSION,
+        }
+
+    h, w = rgb.shape[:2]
+    x, y, fw, fh = face
+    area = float((fw * fh) / max(1, h * w))
+    if area < 0.18:
+        state, label = "move_closer", "Move closer"
+    elif area > 0.60:
+        state, label = "move_back", "Move back"
+    else:
+        state, label = "good", "Distance good"
+    return {
+        "face_detected": True,
+        "distance_state": state,
+        "distance_label": label,
+        "face_area_fraction": round(area, 4),
+        "capture_protocol_version": _CAPTURE_PROTOCOL_VERSION,
+    }
