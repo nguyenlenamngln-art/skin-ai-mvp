@@ -12,7 +12,7 @@ from skin_ai.store import ProductStore
 from skin_ai.uv_engine import UVAnalysisEngine
 from skin_ai.uv_input_validator import UVInputValidator
 from skin_ai.uv_longitudinal import checkpoint_signature, stamp_uv_longitudinal_metadata
-from skin_ai.rgb_engine import RGBAnalysisEngine
+from skin_ai.rgb_engine_v15 import RGBAnalysisEngine
 from skin_ai.tracking import get_region, region_options, stamp_tracking_metadata
 from skin_ai.session_plan import SESSION_VERSION, next_region, session_plan, session_progress
 
