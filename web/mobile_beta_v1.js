@@ -5,7 +5,7 @@
   window.addEventListener('resize',()=>document.documentElement.classList.toggle('mobileBeta',isPhone()))
 
   if('serviceWorker' in navigator){
-    window.addEventListener('load',()=>navigator.serviceWorker.register('/app/sw.js').catch(()=>{}))
+    window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))
   }
 
   function mobileModeHint(){
