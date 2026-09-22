@@ -8,5 +8,12 @@
   "background_color": "#f5f3ec",
   "theme_color": "#314d3e",
   "orientation": "portrait-primary",
-  "icons": []
+  "icons": [
+    {
+      "src": "/app/skin-ai-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
