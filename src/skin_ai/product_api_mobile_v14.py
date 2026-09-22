@@ -2,14 +2,15 @@ from __future__ import annotations
 
 """Production entrypoint for RGB Capture & Tracking V1.4.
 
-RGB measurement remains V1.1. Capture protocol V1.4 separates advisory
-warnings from blocking failures and keeps good, high-scoring phone captures
-eligible for longitudinal comparison when only advisory warnings are present.
+RGB measurement V1.5 runs under Capture Protocol V1.4. Capture protocol V1.4
+separates advisory warnings from blocking failures and keeps good,
+high-scoring phone captures eligible for longitudinal comparison when only
+advisory warnings are present.
 """
 
 import numpy as np
 
-from skin_ai.rgb_engine import RGBAnalysisEngine
+from skin_ai.rgb_engine_v15 import RGBAnalysisEngine
 
 
 _CAPTURE_PROTOCOL_VERSION = "1.4"
