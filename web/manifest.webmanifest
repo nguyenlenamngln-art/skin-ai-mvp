@@ -1,0 +1,19 @@
+{
+  "name": "Skin AI Research Beta",
+  "short_name": "Skin AI",
+  "description": "Personal skin tracking research beta for repeat RGB and UV fluorescence measurements.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f3ec",
+  "theme_color": "#314d3e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/app/skin-ai-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
