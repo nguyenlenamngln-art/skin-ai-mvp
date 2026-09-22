@@ -2,15 +2,32 @@
 (function(){
   const isPhone=()=>window.matchMedia('(max-width: 820px)').matches
 
+  function applyEngineAvailability(){
+    const uvButton=document.querySelector('[data-mode="uv"]')
+    const rgbReady=typeof health!=='undefined' && health?.rgb_engine_available===true
+    const uvReady=typeof health!=='undefined' && health?.uv_model_available===true
+    if(uvButton && (rgbReady||uvReady)){
+      uvButton.disabled=!uvReady
+      uvButton.title=uvReady?'UV fluorescence analysis ready':'UV model checkpoint is not provisioned on this deployment yet.'
+      uvButton.style.opacity=uvReady?'':'0.48'
+      uvButton.style.cursor=uvReady?'':'not-allowed'
+    }
+    if(rgbReady && !uvReady && typeof scanMode!=='undefined' && scanMode==='uv'){
+      scanMode='rgb'
+    }
+  }
+
   function refreshReadyStatus(){
     const el=document.querySelector('#status')
     if(!el) return
-    if(isPhone()){
-      el.classList.add('mobileReadyStatus')
-      if(/ready/i.test(el.textContent||'')) el.textContent='Analysis ready'
-    }else{
-      el.classList.remove('mobileReadyStatus')
+    const rgbReady=typeof health!=='undefined' && health?.rgb_engine_available===true
+    const uvReady=typeof health!=='undefined' && health?.uv_model_available===true
+    if(rgbReady||uvReady){
+      el.textContent=rgbReady&&uvReady?'UV + RGB ready':rgbReady?'RGB ready · UV unavailable':'UV ready · RGB unavailable'
+      el.className=`status ${rgbReady?'ready':'warn'}`
     }
+    if(isPhone()) el.classList.add('mobileReadyStatus')
+    else el.classList.remove('mobileReadyStatus')
   }
 
   function ensureScanJump(){
@@ -61,18 +78,17 @@
     }
   }
 
-  // Track tab switches without changing the existing router.
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-tab],[data-go]')) setTimeout(refreshScanJump,0)
   })
   window.addEventListener('scroll',()=>requestAnimationFrame(refreshScanJump),{passive:true})
   window.addEventListener('resize',()=>{refreshReadyStatus();refreshScanJump()})
 
-  // Existing render/apply hooks are deliberately wrapped only for presentation refreshes.
   if(typeof renderResult==='function'){
     const oldRenderResult=renderResult
     renderResult=function(){
       oldRenderResult()
+      applyEngineAvailability()
       refreshReadyStatus()
       setTimeout(refreshScanJump,0)
     }
@@ -80,12 +96,15 @@
   if(typeof applyModeUI==='function'){
     const oldApply=applyModeUI
     applyModeUI=function(){
+      applyEngineAvailability()
       oldApply()
+      applyEngineAvailability()
       refreshReadyStatus()
       setTimeout(refreshScanJump,0)
     }
   }
 
+  applyEngineAvailability()
   refreshReadyStatus()
   refreshScanJump()
 })();
