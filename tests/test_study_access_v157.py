@@ -11,7 +11,7 @@ from skin_ai.study_access_v157 import (
     clean_tester_id,
     is_study_scan,
     sign_session,
-    tester_id_from_name,
+    tester_id_from_name as study_tester_id_from_name,
     verify_session,
 )
 
@@ -69,7 +69,7 @@ def test_v157_study_identity_and_summary(tmp_path):
     store.add_scan(scan_id="scan-001", created_at="2026-09-23T01:00:00+00:00", modality="rgb", source_name="capture.jpg", metrics=metrics, media_dir="/data/scans/scan-001")
 
     scan = store.get_scan("scan-001")
-    assert tester_id_from_name("STUDY-P001") == "P001"
+    assert study_tester_id_from_name("STUDY-P001") == "P001"
     assert is_study_scan(scan) is True
     summary = _study_summary(store)
     assert summary["participant_count"] == 1
