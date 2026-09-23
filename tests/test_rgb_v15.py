@@ -11,8 +11,8 @@ def synthetic_face_image():
     for c in range(3):
         img[..., c] = np.clip(img[..., c].astype(np.int16) + grad, 0, 255).astype(np.uint8)
 
-    # Red cheek patch that should survive V1.5 confidence masking.
-    img[155:180, 105:135] = [230, 112, 108]
+    # Saturated lower-cheek patch outside the eye/eyebrow exclusion geometry.
+    img[185:215, 105:145] = [245, 95, 90]
     # Compact dark cheek patch that should remain measurable.
     img[205:225, 220:242] = [125, 90, 82]
     # Dark horizontal eyebrow-like structures should be in the geometry-risk zone.
