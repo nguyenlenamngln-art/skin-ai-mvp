@@ -12,7 +12,7 @@ from skin_ai.uv_longitudinal import (
 
 def _stamp(subject="beta-01", site="left cheek"):
     m = {"porphyrin_component_count_proxy": 2}
-    return stamp_uv_longitudinal_metadata(
+    out = stamp_uv_longitudinal_metadata(
         m,
         subject_label=subject,
         anatomical_site=site,
@@ -20,6 +20,9 @@ def _stamp(subject="beta-01", site="left cheek"):
         validator_version="1.0",
         validator_profile="uvfd-closeup-v1",
     )
+    if subject and site:
+        out["tracking_series_key"] = f"{subject.strip()}/{site.strip()}"
+    return out
 
 
 def test_missing_series_identity_is_analysis_only():
