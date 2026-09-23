@@ -15,6 +15,7 @@ def test_rgb_trends_preserve_engine_version(tmp_path):
             "red_spot_count_proxy": 4,
             "pigmented_spot_count_proxy": 10,
             "capture_quality": "good",
+            "tracking_series_key": "subject-1/full-face",
         },
         media_dir="unused",
     )
@@ -31,6 +32,7 @@ def test_rgb_trends_preserve_engine_version(tmp_path):
             "red_spot_count_proxy": 3,
             "pigmented_spot_count_proxy": 8,
             "capture_quality": "good",
+            "tracking_series_key": "subject-1/full-face",
         },
         media_dir="unused",
     )
