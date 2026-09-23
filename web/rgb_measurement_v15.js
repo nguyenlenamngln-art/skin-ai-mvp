@@ -1,4 +1,4 @@
-// RGB Measurement Refinement V1.5 UI
+// RGB Measurement Refinement V1.5 / V1.5.1 UI
 (function(){
   if(typeof renderResult!=='function') return
   const baseRender=renderResult
@@ -6,7 +6,8 @@
     baseRender()
     if(!latest || latest.modality!=='rgb' || rejectedAttempt) return
     const m=latest.metrics||{}
-    if(String(m.rgb_engine_version)!=='1.5') return
+    const version=String(m.rgb_engine_version||'')
+    if(!version.startsWith('1.5')) return
     const body=document.querySelector('#resultBody')
     if(!body) return
 
@@ -24,8 +25,17 @@
 
     const note=document.createElement('div')
     note.className='scienceNote'
-    note.innerHTML=`<b>RGB Measurement V1.5 confidence: ${confidenceLabel}.</b> ${coverage}${pigmentCoverage?` · ${pigmentCoverage}`:''}. Low-confidence eyebrow/eye, lip/nostril and likely hair/stubble pixels are excluded from redness/pigmentation measurements.<p style="margin:8px 0 0">Regional usable-pixel confidence: ${regionalSummary}.</p>`
+    note.innerHTML=`<b>RGB Measurement V${version} confidence: ${confidenceLabel}.</b> ${coverage}${pigmentCoverage?` · ${pigmentCoverage}`:''}. Low-confidence eyebrow/eye, lip/nostril and likely hair/stubble pixels are excluded from redness/pigmentation measurements.<p style="margin:8px 0 0">Regional usable-pixel confidence: ${regionalSummary}.</p>`
     body.appendChild(note)
+
+    if(version==='1.5.1'){
+      const eligible=Array.isArray(m.regional_trend_eligible_regions)?m.regional_trend_eligible_regions:[]
+      const held=Array.isArray(m.regional_trend_held_regions)?m.regional_trend_held_regions:[]
+      const refinement=document.createElement('div')
+      refinement.className='scienceNote'
+      refinement.innerHTML=`<b>Segmentation refinement V1.5.1.</b> The skin mask is smoothed conservatively inside the existing face envelope; detached islands are removed and the algorithm falls back if refinement would discard too much skin.<p style="margin:8px 0 0"><b>Regional trend gate:</b> ${eligible.length?`eligible — ${eligible.map(x=>x.replaceAll('_',' ')).join(', ')}`:'no regions eligible'}${held.length?`; held — ${held.map(x=>x.replaceAll('_',' ')).join(', ')}`:''}.</p>`
+      body.appendChild(refinement)
+    }
 
     if(Array.isArray(m.measurement_warnings) && m.measurement_warnings.length){
       const warning=document.createElement('div')
