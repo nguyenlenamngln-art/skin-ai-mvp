@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Production entrypoint for RGB Capture & Tracking V1.4.
 
-RGB measurement V1.5.1 runs under Capture Protocol V1.4. Capture protocol V1.4
+RGB measurement V1.5.2 runs under Capture Protocol V1.4. Capture protocol V1.4
 separates advisory warnings from blocking failures and keeps good,
 high-scoring phone captures eligible for longitudinal comparison when only
 advisory warnings are present.
@@ -10,7 +10,7 @@ advisory warnings are present.
 
 import numpy as np
 
-from skin_ai.rgb_engine_v151 import RGBAnalysisEngine
+from skin_ai.rgb_engine_v152 import RGBAnalysisEngine
 
 
 _CAPTURE_PROTOCOL_VERSION = "1.4"
@@ -73,6 +73,7 @@ def _mobile_quality(image_rgb, face, skin_mask):
             "Hold the phone steady and refocus",
             "Move closer so the face fills",
             "Retake with sharper, more even lighting",
+            "Use even frontal light and keep the full face centered",
             "Capture conditions are suitable.",
         ),
     )
@@ -92,30 +93,30 @@ def _mobile_quality(image_rgb, face, skin_mask):
     seg_score = float(metrics.get("segmentation_regularity_score", 0.0))
     largest = float(metrics.get("skin_mask_largest_component_fraction", 0.0))
     components = int(metrics.get("skin_mask_component_count", 0))
-    holes = int(metrics.get("skin_mask_hole_count", 0))
     perimeter = float(metrics.get("skin_mask_perimeter_ratio", 999.0))
+    support = float(metrics.get("anatomical_skin_support_fraction", 1.0))
 
     severe_segmentation = (
         seg_score < 35.0
         or largest < 0.80
-        or components > 6
-        or holes > 12
-        or perimeter > 3.2
+        or components > 2
+        or perimeter > 2.8
+        or support < 0.52
     )
     advisory_segmentation = (
         seg_score < 60.0
         or largest < 0.93
-        or components > 2
-        or holes > 8
-        or perimeter > 2.6
+        or components > 1
+        or perimeter > 2.35
+        or support < 0.66
     )
 
     if severe_segmentation:
         flags.append("segmentation_unstable")
-        guidance.append("Use more even frontal light and a slightly closer, centered framing so the analyzed skin boundary is stable.")
+        guidance.append("Use even frontal light and keep the full face centered so the outer facial skin boundary remains stable.")
     elif advisory_segmentation:
         flags.append("segmentation_variation")
-        guidance.append("Skin-boundary consistency was acceptable but not ideal; use more even light for repeat scans.")
+        guidance.append("Outer skin-boundary consistency was acceptable but not ideal; use even frontal light for repeat scans.")
 
     metrics["quality_flags"] = list(dict.fromkeys(flags))
     metrics["quality_guidance"] = list(dict.fromkeys(guidance))
@@ -133,12 +134,8 @@ RGBAnalysisEngine._quality = staticmethod(_mobile_quality)
 RGBAnalysisEngine._reclassify_quality = classmethod(lambda cls, metrics: _classify_v14(metrics))
 RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION = _CAPTURE_PROTOCOL_VERSION
 
-# Import after calibration so all API handlers, including the core live
-# distance endpoint, use capture protocol V1.4 from process start.
 import skin_ai.product_api as product_api  # noqa: E402
 
-# product_api imports the prior stable RGB engine by default. Rebind its runtime
-# engine symbol to V1.5.1 before requests are served, and clear any eager instance.
 product_api.RGBAnalysisEngine = RGBAnalysisEngine
 product_api._rgb_engine = None
 
@@ -146,8 +143,6 @@ _ORIGINAL_RESOLVE_TRACKING = product_api.resolve_tracking
 
 
 def _resolve_tracking_v14(subject_id, region_code, modality):
-    # Standard standalone Phone RGB scans default to a persistent personal
-    # tracking series. Explicit profile/region choices still take precedence.
     if modality == "rgb" and not subject_id and not region_code:
         subject = product_api.store.create_subject(
             subject_id="my_profile",
