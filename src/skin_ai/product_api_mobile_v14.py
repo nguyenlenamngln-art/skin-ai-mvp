@@ -2,14 +2,15 @@ from __future__ import annotations
 
 """Production entrypoint for RGB Capture & Tracking V1.4.
 
-RGB measurement remains V1.1. Capture protocol V1.4 separates advisory
-warnings from blocking failures and keeps good, high-scoring phone captures
-eligible for longitudinal comparison when only advisory warnings are present.
+RGB measurement V1.5 runs under Capture Protocol V1.4. Capture protocol V1.4
+separates advisory warnings from blocking failures and keeps good,
+high-scoring phone captures eligible for longitudinal comparison when only
+advisory warnings are present.
 """
 
 import numpy as np
 
-from skin_ai.rgb_engine import RGBAnalysisEngine
+from skin_ai.rgb_engine_v15 import RGBAnalysisEngine
 
 
 _CAPTURE_PROTOCOL_VERSION = "1.4"
@@ -135,6 +136,12 @@ RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION = _CAPTURE_PROTOCOL_VERSION
 # Import after calibration so all API handlers, including the core live
 # distance endpoint, use capture protocol V1.4 from process start.
 import skin_ai.product_api as product_api  # noqa: E402
+
+# product_api imports the stable V1.1 base class by default. Rebind its runtime
+# engine symbol to V1.5 before requests are served, and clear any eager instance.
+# Existing route functions resolve this module-global symbol at call time.
+product_api.RGBAnalysisEngine = RGBAnalysisEngine
+product_api._rgb_engine = None
 
 _ORIGINAL_RESOLVE_TRACKING = product_api.resolve_tracking
 
