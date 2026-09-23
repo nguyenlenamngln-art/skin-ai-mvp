@@ -1,0 +1,77 @@
+/* V1.5.8.4 — iOS bottom navigation hotfix. Presentation only. */
+@media (max-width:820px){
+  /* The legacy sidebar nav is no longer used on phones. A body-level nav is rendered by JS. */
+  body.mobileV1584 aside nav{display:none!important;}
+
+  body.mobileV1584 #mobileBottomNavV1584{
+    position:fixed!important;
+    z-index:9999!important;
+    left:10px!important;
+    right:10px!important;
+    bottom:calc(8px + env(safe-area-inset-bottom))!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:4px!important;
+    margin:0!important;
+    padding:6px!important;
+    border:1px solid rgba(213,219,211,.98)!important;
+    border-radius:18px!important;
+    background:rgba(252,251,247,.98)!important;
+    box-shadow:0 10px 34px rgba(28,43,34,.18)!important;
+    backdrop-filter:blur(18px)!important;
+    -webkit-backdrop-filter:blur(18px)!important;
+    transform:translateZ(0)!important;
+    -webkit-transform:translateZ(0)!important;
+    isolation:isolate!important;
+  }
+  body.mobileV1584 #mobileBottomNavV1584 button{
+    appearance:none!important;
+    -webkit-appearance:none!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-width:0!important;
+    min-height:50px!important;
+    margin:0!important;
+    padding:7px 2px!important;
+    border:1px solid transparent!important;
+    border-radius:13px!important;
+    background:transparent!important;
+    color:#606a63!important;
+    font:inherit!important;
+    font-size:11px!important;
+    font-weight:750!important;
+    line-height:1.05!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+  }
+  body.mobileV1584 #mobileBottomNavV1584 button.active:not([data-mobile-tab="scan"]){
+    background:#e6ece6!important;
+    color:#294737!important;
+  }
+  body.mobileV1584 #mobileBottomNavV1584 button[data-mobile-tab="scan"]{
+    background:#edf3ee!important;
+    border-color:#d5e1d8!important;
+    color:#31533f!important;
+    font-size:12px!important;
+    font-weight:850!important;
+  }
+  body.mobileV1584 #mobileBottomNavV1584 button[data-mobile-tab="scan"].active{
+    background:#31533f!important;
+    border-color:#31533f!important;
+    color:#fff!important;
+  }
+
+  /* Reserve space for the body-level nav so content and Safari chrome never cover it. */
+  body.mobileV1584{padding-bottom:calc(92px + env(safe-area-inset-bottom))!important;}
+  body.mobileV1584 main{padding-bottom:calc(122px + env(safe-area-inset-bottom))!important;}
+
+  /* With one scan, the Before & After card already explains the next action. */
+  body.mobileV1584 #progress .uxBaselineNext{display:none!important;}
+}
+
+@media (max-width:390px){
+  body.mobileV1584 #mobileBottomNavV1584{left:6px!important;right:6px!important;gap:2px!important;padding:5px!important;}
+  body.mobileV1584 #mobileBottomNavV1584 button{font-size:10px!important;padding-inline:1px!important;}
+  body.mobileV1584 #mobileBottomNavV1584 button[data-mobile-tab="scan"]{font-size:11px!important;}
+}
