@@ -51,7 +51,18 @@ def test_v15_feature_mask_removes_some_low_confidence_pixels(monkeypatch):
     assert measurement_valid.sum() < analysis_valid.sum()
     assert pigmentation_valid.sum() <= measurement_valid.sum()
     assert info['feature_geometry_exclusion_fraction'] > 0
+    assert info['hair_like_exclusion_fraction'] >= 0
     assert info['measurement_usable_pixel_fraction'] > 0
+
+
+def test_v15_red_patch_produces_nonzero_redness(monkeypatch):
+    engine = RGBAnalysisEngine()
+    monkeypatch.setattr(engine, '_detect_largest_face', lambda detector, image: (70, 45, 220, 260))
+    result = engine.analyze_rgb(synthetic_face_image())
+    m = result.metrics
+    assert m['redness_area_fraction'] > 0
+    assert m['red_spot_count_proxy'] >= 1
+    assert m['redness_excess_mean_lab_a'] > 0
 
 
 def test_v15_overlay_uses_only_filtered_components(monkeypatch):
@@ -86,3 +97,30 @@ def test_v15_reference_quality_rejects_cross_version_reference():
     legacy = {'rgb_engine_version': '1.1', 'skin_luminance_median_0_255': 120.0}
     out = RGBAnalysisEngine.apply_reference_capture_quality(current.copy(), legacy)
     assert 'reference_exposure_delta_ev' not in out
+
+
+def test_v15_low_measurement_confidence_blocks_trend_eligibility():
+    current = {
+        'rgb_engine_version': '1.5',
+        'capture_protocol_version': '1.4',
+        'skin_luminance_median_0_255': 150.0,
+        'capture_quality': 'good',
+        'capture_quality_score': 95.0,
+        'longitudinal_eligible': True,
+        'measurement_confidence_score': 40.0,
+        'quality_flags': [],
+        'quality_guidance': [],
+        'quality_subscores': {
+            'lighting': 100.0, 'sharpness': 100.0, 'framing': 100.0,
+            'centering': 100.0, 'clipping': 100.0, 'symmetry': 100.0,
+            'segmentation': 90.0,
+        },
+    }
+    reference = {
+        'rgb_engine_version': '1.5',
+        'skin_luminance_median_0_255': 150.0,
+    }
+    out = RGBAnalysisEngine.apply_reference_capture_quality(current, reference)
+    assert out['capture_quality'] == 'good'
+    assert out['longitudinal_eligible'] is False
+    assert out['longitudinal_reason'] == 'measurement_confidence_low'
