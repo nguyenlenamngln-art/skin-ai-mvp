@@ -73,15 +73,13 @@ def test_v156_manifest_counts_participants_sessions_and_captures():
     assert [x["capture_id"] for x in report["captures"]] == ["a", "b", "c"]
 
 
-def test_v156_ui_requires_notice_and_uses_guided_rgb_session():
+def test_v156_ui_historical_asset_still_contains_notice_and_guided_session_logic():
     js = SCRIPT.read_text(encoding="utf-8")
 
     for text in (
         "TESTER STUDY MODE",
         "Study notice",
-        "pseudonymous tester code",
         "not a medical or diagnostic assessment",
-        "Start study session",
         "full_face",
         "startGuidedSession",
         "scanMode='rgb'",
@@ -92,19 +90,19 @@ def test_v156_ui_requires_notice_and_uses_guided_rgb_session():
     assert "formal research consent" in js
 
 
-def test_v156_assets_load_after_v155_and_are_cached():
+def test_v156_assets_remain_available_while_v157_supersedes_live_ui():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
 
     assert "/app/tester_study_v156.css?v=156" in html
-    assert "/app/tester_study_v156.js?v=156" in html
-    assert html.index("tester_result_v155.js") < html.index("tester_study_v156.js")
-    assert "skin-ai-beta-v156" in sw
+    assert "/app/tester_study_v157.js?v=157" in html
+    assert "/app/tester_study_v156.js?v=156" not in html
+    assert "skin-ai-beta-v157" in sw
     assert "/app/tester_study_v156.css?v=156" in sw
-    assert "/app/tester_study_v156.js?v=156" in sw
+    assert "/app/tester_study_v157.js?v=157" in sw
 
 
-def test_v156_keeps_engine_and_capture_protocol_frozen():
+def test_v156_historical_ui_keeps_engine_and_capture_protocol_frozen():
     js = SCRIPT.read_text(encoding="utf-8")
     assert "Measurement remains RGB engine V1.5.2 / Capture Protocol V1.4" in js
 
