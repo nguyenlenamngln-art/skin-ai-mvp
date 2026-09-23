@@ -90,14 +90,14 @@ def test_v156_ui_historical_asset_still_contains_notice_and_guided_session_logic
     assert "formal research consent" in js
 
 
-def test_v156_assets_remain_available_while_v157_supersedes_live_ui():
+def test_v156_assets_remain_available_while_later_releases_supersede_live_ui():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
 
     assert "/app/tester_study_v156.css?v=156" in html
     assert "/app/tester_study_v157.js?v=157" in html
     assert "/app/tester_study_v156.js?v=156" not in html
-    assert "skin-ai-beta-v157" in sw
+    assert "skin-ai-beta-v15" in sw
     assert "/app/tester_study_v156.css?v=156" in sw
     assert "/app/tester_study_v157.js?v=157" in sw
 

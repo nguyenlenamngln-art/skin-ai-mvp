@@ -125,13 +125,13 @@ def test_v157_researcher_dashboard_does_not_store_researcher_key():
     assert "access_code" in js
 
 
-def test_v157_assets_are_loaded_and_cached():
+def test_v157_assets_are_loaded_and_remain_cached_in_later_releases():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
     assert "/app/tester_study_v157.css?v=157" in html
     assert "/app/tester_study_v157.js?v=157" in html
     assert "tester_study_v156.js" not in html
-    assert "skin-ai-beta-v157" in sw
+    assert "skin-ai-beta-v15" in sw
     assert "/researcher.html" in sw
     assert "/app/researcher_v157.js?v=157" in sw
 
