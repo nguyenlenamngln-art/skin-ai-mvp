@@ -50,7 +50,9 @@ def test_v155_avoids_unvalidated_severity_labels():
 def test_v155_assets_are_cached_by_pwa():
     sw = SW.read_text(encoding="utf-8")
 
-    assert "skin-ai-beta-v155" in sw
+    # Later presentation/study milestones may bump the global PWA cache name,
+    # but the V1.5.5 result assets must remain in the cache manifest.
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/tester_result_v155.css?v=155" in sw
     assert "/app/tester_result_v155.js?v=155" in sw
 
