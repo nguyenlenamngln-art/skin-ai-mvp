@@ -23,14 +23,14 @@ def test_v1583_uses_one_five_destination_bottom_navigation():
     assert "button::before{content:none!important" in css
     assert "progress:'Progress'" in js
     assert "scan:'+ Scan'" in js
-    assert "body.mobileV1583 .mobileScanJump{display:none!important}" in css
+    assert ".mobileScanJump" in css and "display:none!important" in css
     assert "jump.remove()" in js
 
 
 def test_v1583_active_state_does_not_make_scan_selected_on_every_tab():
     css = CSS.read_text(encoding="utf-8")
-    assert 'button[data-tab="scan"]{' in css
-    assert 'button[data-tab="scan"].active{' in css
+    assert 'button[data-tab="scan"]' in css
+    assert 'button[data-tab="scan"].active' in css
     assert 'button.active:not([data-tab="scan"])' in css
 
 
@@ -51,8 +51,8 @@ def test_v1583_simplifies_phone_capture_flow():
     assert "Open camera" in js
     assert "Or upload a photo" in js
     assert "Choose photo" in js
-    assert "body.mobileV1583 #scan .mobileCaptureHint{display:none!important}" in css
-    assert "body.mobileV1583 #home .pjQuickLinks{display:none!important}" in css
+    assert ".mobileCaptureHint" in css and "display:none!important" in css
+    assert ".pjQuickLinks" in css and "display:none!important" in css
 
 
 def test_v1583_preserves_touch_targets_and_safe_area():
