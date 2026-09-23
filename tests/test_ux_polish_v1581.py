@@ -56,8 +56,25 @@ def test_v1581_is_presentation_only_and_engine_remains_frozen():
     assert '_CAPTURE_PROTOCOL_VERSION = "1.4"' in entry
 
 
-def test_v1581_pwa_cache_is_bumped():
+def test_v1582_routine_page_has_breathing_room_between_sections():
+    css = CSS.read_text(encoding="utf-8")
+    assert "V1.5.8.2 — Routine page spacing and visual rhythm" in css
+    assert "margin-bottom:36px" in css
+    assert "#journeyRoutineAddon{display:grid;gap:30px" in css
+    assert "#routine .pjContext{padding:26px;gap:14px}" in css
+    assert "#routine .pjNoteRow{padding:16px 2px 18px;gap:18px}" in css
+    assert "#routine #saveRoutine{padding:12px 18px}" in css
+
+
+def test_v1582_mobile_routine_spacing_remains_touch_friendly():
+    css = CSS.read_text(encoding="utf-8")
+    assert "#routine #saveRoutine{width:100%}" in css
+    assert "#journeyRoutineAddon{gap:26px}" in css
+    assert "#routine .routine{padding:20px}" in css
+
+
+def test_v1582_pwa_cache_is_bumped_while_v1581_assets_remain_cached():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1581" in sw
+    assert "skin-ai-beta-v1582" in sw
     assert "/app/ux_polish_v1581.css?v=1581" in sw
     assert "/app/ux_polish_v1581.js?v=1581" in sw
