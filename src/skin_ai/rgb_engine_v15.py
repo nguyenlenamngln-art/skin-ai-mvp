@@ -23,6 +23,13 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
     MEASUREMENT_MASK_VERSION = "feature_confidence_v1_5"
 
     @staticmethod
+    def _quality(image_rgb: np.ndarray, face: tuple[int, int, int, int], skin_mask: np.ndarray) -> dict[str, Any]:
+        """Reuse the stable quality model while stamping V1.4 capture protocol."""
+        metrics = RGBAnalysisEngineV11._quality(image_rgb, face, skin_mask)
+        metrics["capture_protocol_version"] = RGBAnalysisEngineV15.CAPTURE_PROTOCOL_VERSION
+        return metrics
+
+    @staticmethod
     def _ellipse_mask(
         shape: tuple[int, int],
         face: tuple[int, int, int, int],
@@ -68,7 +75,6 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
             ],
         )
 
-        # Keep measurements away from unstable skin-mask edges.
         interior = cv2.erode(
             analysis_valid.astype(np.uint8),
             np.ones((3, 3), np.uint8),
@@ -144,15 +150,13 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
             if aspect > max_aspect or extent < min_extent:
                 continue
             cleaned[labels == i] = 1
-            comps.append(
-                {
-                    "x": float(centroids[i, 0]),
-                    "y": float(centroids[i, 1]),
-                    "area_px": float(area),
-                    "aspect": float(aspect),
-                    "extent": float(extent),
-                }
-            )
+            comps.append({
+                "x": float(centroids[i, 0]),
+                "y": float(centroids[i, 1]),
+                "area_px": float(area),
+                "aspect": float(aspect),
+                "extent": float(extent),
+            })
         return cleaned > 0, comps
 
     @staticmethod
@@ -246,8 +250,6 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
         red_chroma = rgb[..., 0] / denom
         redness_index = float(red_chroma[measurement_valid].mean())
 
-        # V1.5 redness: require skin-relative redness plus local excess. This is
-        # more robust to overall skin tone/exposure than a fixed local threshold.
         a_values = a[measurement_valid]
         a_med = float(np.median(a_values))
         a_mad = max(1.0, float(1.4826 * np.median(np.abs(a_values - a_med))))
@@ -277,8 +279,6 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
         )
         red_spot_count = len(red_components)
 
-        # V1.5 pigmentation: keep the local-darkness proxy but exclude likely
-        # stubble/hair and render only accepted compact components.
         L_blur = cv2.GaussianBlur(L, (0, 0), 7.0)
         dark_resid = L_blur - L
         dark_values = dark_resid[pigmentation_valid]
@@ -373,5 +373,4 @@ class RGBAnalysisEngineV15(RGBAnalysisEngineV11):
         return RGBAnalysisResult(metrics, image_rgb, skin_region, redness_map, pigmentation_map, overlay)
 
 
-# Product API imports this alias so existing type/call sites do not change.
 RGBAnalysisEngine = RGBAnalysisEngineV15
