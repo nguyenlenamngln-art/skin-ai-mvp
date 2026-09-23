@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#263b31" />
+  <title>Skin AI · Researcher Dashboard</title>
+  <link rel="stylesheet" href="/app/researcher_v157.css?v=157" />
+</head>
+<body>
+  <main class="rdShell">
+    <header class="rdHeader">
+      <div><span class="eyebrow">SKIN AI · V1.5.7</span><h1>Researcher Dashboard</h1><p>Private study management and repeatability review.</p></div>
+      <button id="logoutBtn" class="ghost hidden" type="button">Sign out</button>
+    </header>
+
+    <section id="loginView" class="rdLogin card">
+      <span class="eyebrow">RESEARCHER ACCESS</span>
+      <h2>Sign in</h2>
+      <p>Enter the server-configured researcher key. The key is exchanged for a secure session cookie and is not stored in local browser storage.</p>
+      <form id="loginForm"><input id="researcherKey" type="password" autocomplete="current-password" placeholder="Researcher key" required><button type="submit">Continue</button></form>
+      <div id="loginError" class="error hidden"></div>
+    </section>
+
+    <section id="dashboardView" class="hidden">
+      <div id="summaryCards" class="summaryGrid"></div>
+
+      <section class="card toolbar">
+        <div><span class="eyebrow">STUDY MANAGEMENT</span><h2>Participants</h2><p>Create pseudonymous testers and review their repeat captures.</p></div>
+        <div class="toolbarActions"><button id="createTesterBtn" type="button">+ New tester</button><button id="exportBtn" class="ghost" type="button">Export V1.5.4 manifest</button></div>
+      </section>
+
+      <section id="credentialPanel" class="credentialPanel hidden"></section>
+      <section id="participantGrid" class="participantGrid"></section>
+      <section id="participantDetail" class="detailPanel hidden"></section>
+    </section>
+  </main>
+  <script src="/app/researcher_v157.js?v=157"></script>
+</body>
+</html>
