@@ -66,6 +66,7 @@
     document.querySelector('#studySetup')?.classList.remove('hidden')
     document.body.classList.add('studyModeActiveV156')
     scanMode='rgb'
+    setTab('scan')
     applyModeUI()
     renderStudyStatus()
   }
@@ -75,6 +76,7 @@
     document.querySelector('#studyEnabled') && (document.querySelector('#studyEnabled').checked=false)
     document.querySelector('#studySetup')?.classList.add('hidden')
     document.body.classList.remove('studyModeActiveV156')
+    document.querySelector('#trackingContext')?.classList.remove('studyManagedTracking')
     if(clearStored){
       localStorage.removeItem(STORAGE_TESTER)
       localStorage.removeItem(STORAGE_ACK)
@@ -108,7 +110,7 @@
         showError('Finish the currently active guided session before switching study testers.')
         return
       }
-      studyTesterId=testerId; studyActive=true; renderStudyStatus(); return
+      studyTesterId=testerId; studyActive=true; setTab('scan'); renderStudyStatus(); return
     }
     try{
       showError('')
@@ -119,6 +121,7 @@
       trackingSubjectId=subject.id
       trackingRegionCode='full_face'
       scanMode='rgb'
+      setTab('scan')
       populateTrackingControls()
       await startGuidedSession()
       renderStudyStatus()
@@ -177,6 +180,7 @@
     if(enabled) enabled.checked=true
     document.querySelector('#studySetup')?.classList.remove('hidden')
     document.body.classList.add('studyModeActiveV156')
+    setTab('scan')
     try{
       if(!trackingSubjects.length) trackingSubjects=await api('/v1/subjects')
       const subject=studySubject()
