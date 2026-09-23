@@ -137,6 +137,12 @@ RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION = _CAPTURE_PROTOCOL_VERSION
 # distance endpoint, use capture protocol V1.4 from process start.
 import skin_ai.product_api as product_api  # noqa: E402
 
+# product_api imports the stable V1.1 base class by default. Rebind its runtime
+# engine symbol to V1.5 before requests are served, and clear any eager instance.
+# Existing route functions resolve this module-global symbol at call time.
+product_api.RGBAnalysisEngine = RGBAnalysisEngine
+product_api._rgb_engine = None
+
 _ORIGINAL_RESOLVE_TRACKING = product_api.resolve_tracking
 
 
