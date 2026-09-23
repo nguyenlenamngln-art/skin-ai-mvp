@@ -72,8 +72,7 @@ def test_v1583_is_presentation_only_and_engine_protocol_are_frozen():
     assert '_CAPTURE_PROTOCOL_VERSION = "1.4"' in entry
 
 
-def test_v1583_pwa_cache_is_bumped():
+def test_v1583_assets_remain_cached_after_future_pwa_bumps():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1583" in sw
     assert "/app/mobile_navigation_v1583.css?v=1583" in sw
     assert "/app/mobile_navigation_v1583.js?v=1583" in sw
