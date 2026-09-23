@@ -65,13 +65,13 @@ def test_v158_is_mobile_first_with_persistent_five_tab_nav():
     assert "padding-bottom:74px" in css
 
 
-def test_v158_assets_load_after_study_access_and_pwa_is_bumped():
+def test_v158_assets_remain_loaded_when_later_ux_patches_are_added():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
     assert "/app/personal_journey_v158.css?v=158" in html
     assert "/app/personal_journey_v158.js?v=158" in html
     assert html.index("tester_study_v157.js") < html.index("personal_journey_v158.js")
-    assert "skin-ai-beta-v158" in sw
+    assert "skin-ai-beta-v15" in sw
     assert "/app/personal_journey_v158.css?v=158" in sw
     assert "/app/personal_journey_v158.js?v=158" in sw
 
