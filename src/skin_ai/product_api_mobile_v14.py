@@ -155,4 +155,10 @@ def _resolve_tracking_v14(subject_id, region_code, modality):
 
 
 product_api.resolve_tracking = _resolve_tracking_v14
+
+# V1.5.7 is an orchestration/access-control layer only. It deliberately installs
+# after the V1.4 capture behavior and does not alter the RGB V1.5.2 measurement engine.
+from skin_ai.study_access_v157 import install_v157  # noqa: E402
+
+install_v157(product_api)
 app = product_api.app
