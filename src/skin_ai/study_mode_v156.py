@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -9,13 +8,11 @@ from typing import Any, Iterable
 
 STUDY_MODE_VERSION = "1.5.6"
 STUDY_NOTICE_VERSION = "1.0"
-STUDY_SUBJECT_PREFIX = "study_"
+STUDY_PROFILE_PREFIX = "STUDY-"
 _STUDY_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,31}$")
-_ACCESS_TOKEN = re.compile(r"^[A-Fa-f0-9]{32,128}$")
-_DEVICE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,47}$")
 
 
-def clean_study_id(value: str | None, field: str) -> str:
+def clean_study_id(value: str | None, field: str = "tester_id") -> str:
     text = str(value or "").strip()
     if not _STUDY_ID.fullmatch(text):
         raise ValueError(
@@ -25,92 +22,46 @@ def clean_study_id(value: str | None, field: str) -> str:
     return text
 
 
-def clean_device_id(value: str | None) -> str | None:
-    text = str(value or "").strip()
-    if not text:
+def study_profile_name(tester_id: str) -> str:
+    return f"{STUDY_PROFILE_PREFIX}{clean_study_id(tester_id)}"
+
+
+def tester_id_from_metrics(metrics: dict[str, Any]) -> str | None:
+    name = str(metrics.get("tracking_subject_name") or "")
+    if not name.startswith(STUDY_PROFILE_PREFIX):
         return None
-    if not _DEVICE_ID.fullmatch(text):
-        raise ValueError("device_id must be at most 48 characters using letters, numbers, '.', '-' or '_'.")
-    return text
-
-
-def study_access_hash(token: str | None) -> str:
-    text = str(token or "").strip()
-    if not _ACCESS_TOKEN.fullmatch(text):
-        raise ValueError("Study access token is missing or invalid.")
-    return hashlib.sha256(f"skin-ai-study-v156|{text}".encode("utf-8")).hexdigest()
-
-
-def study_subject_id(tester_id: str) -> str:
-    clean = clean_study_id(tester_id, "tester_id")
-    digest = hashlib.sha256(f"skin-ai-study-subject-v156|{clean.lower()}".encode("utf-8")).hexdigest()[:16]
-    return f"{STUDY_SUBJECT_PREFIX}{digest}"
-
-
-def is_study_subject(subject_id: str | None) -> bool:
-    return str(subject_id or "").startswith(STUDY_SUBJECT_PREFIX)
-
-
-def stamp_study_metadata(
-    metrics: dict[str, Any],
-    *,
-    tester_id: str,
-    session_id: str,
-    access_token: str,
-    acknowledged: bool,
-    acknowledged_at: str | None,
-    device_id: str | None,
-    capture_id: str,
-) -> dict[str, Any]:
-    if not acknowledged:
-        raise ValueError("Study notice acknowledgment is required before a study capture can be saved.")
-    tester = clean_study_id(tester_id, "tester_id")
-    session = clean_study_id(session_id, "session_id")
-    device = clean_device_id(device_id)
-    access_hash = study_access_hash(access_token)
-    metrics.update(
-        {
-            "study_mode": True,
-            "study_mode_version": STUDY_MODE_VERSION,
-            "study_notice_version": STUDY_NOTICE_VERSION,
-            "study_notice_acknowledged": True,
-            "study_notice_acknowledged_at": str(acknowledged_at or "")[:64] or None,
-            "study_tester_id": tester,
-            "study_session_id": session,
-            "study_device_id": device,
-            "study_capture_id": capture_id,
-            "study_access_key_hash": access_hash,
-        }
-    )
-    return metrics
+    tester_id = name[len(STUDY_PROFILE_PREFIX):]
+    try:
+        return clean_study_id(tester_id)
+    except ValueError:
+        return None
 
 
 def is_study_scan(scan: dict[str, Any]) -> bool:
-    return bool((scan.get("metrics") or {}).get("study_mode"))
-
-
-def study_scan_matches_access(scan: dict[str, Any], access_hash: str) -> bool:
     metrics = scan.get("metrics") or {}
-    return bool(metrics.get("study_mode") and metrics.get("study_access_key_hash") == access_hash)
+    return bool(tester_id_from_metrics(metrics) and metrics.get("scan_session_id"))
 
 
 def study_manifest_record(scan: dict[str, Any]) -> dict[str, Any] | None:
     metrics = scan.get("metrics") or {}
-    if not metrics.get("study_mode"):
+    tester_id = tester_id_from_metrics(metrics)
+    session_id = metrics.get("scan_session_id")
+    if scan.get("modality") != "rgb" or not tester_id or not session_id:
         return None
     media_dir = scan.get("media_dir")
     path = str(Path(media_dir) / "original.jpg") if media_dir else None
     return {
         "path": path,
-        "participant_id": metrics.get("study_tester_id"),
-        "session_id": metrics.get("study_session_id"),
-        "capture_id": metrics.get("study_capture_id") or scan.get("id"),
-        "device_id": metrics.get("study_device_id"),
+        "participant_id": tester_id,
+        "session_id": str(session_id),
+        "capture_id": scan.get("id"),
+        "device_id": None,
         "created_at": scan.get("created_at"),
         "rgb_engine_version": metrics.get("rgb_engine_version"),
         "capture_protocol_version": metrics.get("capture_protocol_version"),
         "capture_quality": metrics.get("capture_quality"),
         "longitudinal_eligible": metrics.get("longitudinal_eligible"),
+        "tracking_series_key": metrics.get("tracking_series_key"),
     }
 
 
@@ -121,6 +72,7 @@ def build_study_manifest(scans: Iterable[dict[str, Any]]) -> dict[str, Any]:
     sessions = {(row["participant_id"], row["session_id"]) for row in captures if row.get("participant_id") and row.get("session_id")}
     return {
         "study_mode_version": STUDY_MODE_VERSION,
+        "study_notice_version": STUDY_NOTICE_VERSION,
         "capture_count": len(captures),
         "participant_count": len(participants),
         "session_count": len(sessions),
