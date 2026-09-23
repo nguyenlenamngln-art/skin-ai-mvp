@@ -25,5 +25,5 @@ else
   echo "UV checkpoint not configured; starting RGB-capable beta with UV unavailable."
 fi
 
-echo "RGB Measurement V1.5.1 · Capture Protocol V1.4: segmentation refinement, regional trend confidence gates, live distance guidance."
+echo "RGB Measurement V1.5.2 · Capture Protocol V1.4: anatomical outer-envelope stabilization, preserved regional trend gates, live distance guidance."
 exec python -m uvicorn skin_ai.product_api_mobile_v14:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1
