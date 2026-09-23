@@ -23,7 +23,7 @@ def test_v1583_uses_one_five_destination_bottom_navigation():
     assert "button::before{content:none!important" in css
     assert "progress:'Progress'" in js
     assert "scan:'+ Scan'" in js
-    assert "mobileScanJump{display:none!important}" in css
+    assert "body.mobileV1583 .mobileScanJump{display:none!important}" in css
     assert "jump.remove()" in js
 
 
@@ -51,8 +51,8 @@ def test_v1583_simplifies_phone_capture_flow():
     assert "Open camera" in js
     assert "Or upload a photo" in js
     assert "Choose photo" in js
-    assert "#scan .mobileCaptureHint{display:none!important}" in css
-    assert "#home .pjQuickLinks{display:none!important}" in css
+    assert "body.mobileV1583 #scan .mobileCaptureHint{display:none!important}" in css
+    assert "body.mobileV1583 #home .pjQuickLinks{display:none!important}" in css
 
 
 def test_v1583_preserves_touch_targets_and_safe_area():
