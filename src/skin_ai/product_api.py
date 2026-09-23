@@ -292,5 +292,6 @@ async def rgb_capture_check(image:UploadFile=File(...)):
     else: state,label='good','Distance good'
     return {'face_detected':True,'distance_state':state,'distance_label':label,'face_area_fraction':round(area,4),'capture_protocol_version':RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION}
 
-app.mount('/app',StaticFiles(directory=WEB_DIR,html=False),name='app')
-app.mount('/',StaticFiles(directory=WEB_DIR,html=True),name='web')
+if WEB_DIR.exists():
+    app.mount('/app',StaticFiles(directory=WEB_DIR),name='app-assets')
+    app.mount('/',StaticFiles(directory=WEB_DIR,html=True),name='web')
