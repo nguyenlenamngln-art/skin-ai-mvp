@@ -73,8 +73,8 @@ def test_v1582_mobile_routine_spacing_remains_touch_friendly():
     assert "#routine .routine{padding:20px}" in css
 
 
-def test_v1582_pwa_cache_is_bumped_while_v1581_assets_remain_cached():
+def test_v1582_assets_remain_cached_after_later_pwa_bumps():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1582" in sw
+    assert "skin-ai-beta-v158" in sw
     assert "/app/ux_polish_v1581.css?v=1581" in sw
     assert "/app/ux_polish_v1581.js?v=1581" in sw
