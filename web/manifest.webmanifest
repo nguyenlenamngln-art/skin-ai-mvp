@@ -1,7 +1,8 @@
 {
-  "name": "Skin AI Research Beta",
+  "name": "Skin AI — Theo dõi da cá nhân",
   "short_name": "Skin AI",
-  "description": "Personal skin tracking research beta for repeat RGB and UV fluorescence measurements.",
+  "description": "Ứng dụng thử nghiệm theo dõi da cá nhân bằng ảnh RGB và huỳnh quang UV lặp lại. Personal skin tracking research beta.",
+  "lang": "vi",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
