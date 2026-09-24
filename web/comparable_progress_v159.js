@@ -3,6 +3,7 @@
 (function(){
   const VERSION='1.5.9'
   const isPhone=()=>window.matchMedia('(max-width:820px)').matches
+  const t=en=>{try{return window.skinCaptureI18n?.t?.(en)||window.skinI18n?.t?.(en)||en}catch(_e){return en}}
   let scheduled=false
 
   function finite(v){return Number.isFinite(Number(v))}
@@ -84,17 +85,22 @@
   function addCaptureReference(){
     if(!isPhone())return
     const stage=document.querySelector('#cgCamera .cgStage'),ref=current()
-    if(!stage||!ref||stage.querySelector('.v159Ghost'))return
-    const img=document.createElement('img');img.className='v159Ghost';img.src=ref.media?.original||'';img.alt='Previous comparable scan alignment reference';stage.appendChild(img)
-    const label=document.createElement('span');label.className='v159GhostLabel';label.textContent='Match previous framing';stage.appendChild(label)
-    alignImage(img,ref,stage)
+    if(!stage||!ref)return
+    let img=stage.querySelector('.v159Ghost')
+    if(!img){img=document.createElement('img');img.className='v159Ghost';img.src=ref.media?.original||'';stage.appendChild(img);alignImage(img,ref,stage)}
+    img.alt=t('Previous comparable scan alignment reference')
+    let label=stage.querySelector('.v159GhostLabel')
+    if(!label){label=document.createElement('span');label.className='v159GhostLabel';stage.appendChild(label)}
+    label.textContent=t('Match previous framing')
   }
 
   function addCaptureMatchHint(){
     if(!isPhone())return
     const guide=document.querySelector('#captureGuidanceV2 .cgHeader>div'),ref=current()
-    if(!guide||!ref||guide.querySelector('.v159RefHint'))return
-    const hint=document.createElement('small');hint.className='v159RefHint';hint.textContent='We’ll compare framing and lighting with your previous good scan.';guide.appendChild(hint)
+    if(!guide||!ref)return
+    let hint=guide.querySelector('.v159RefHint')
+    if(!hint){hint=document.createElement('small');hint.className='v159RefHint';guide.appendChild(hint)}
+    hint.textContent=t('We’ll compare framing and lighting with your previous good scan.')
   }
 
   function enhance(){scheduled=false;document.documentElement.dataset.comparisonUxVersion=VERSION;enhanceSummary();enhanceCompare();addCaptureReference();addCaptureMatchHint()}
@@ -102,5 +108,7 @@
   new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true})
   document.addEventListener('click',e=>{if(e.target.closest('[data-tab],#cgOpenCamera'))setTimeout(schedule,50)})
   window.addEventListener('resize',schedule)
+  window.addEventListener('skin-ai:locale-change',schedule)
+  window.addEventListener('skin-ai:capture-i18n-ready',schedule)
   setTimeout(enhance,0)
 })()
