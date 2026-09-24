@@ -90,12 +90,12 @@ def test_v1591_mobile_progress_has_safe_space_above_fixed_nav():
     assert "#progressRoot{padding-bottom:calc(150px + env(safe-area-inset-bottom))}" in css
 
 
-def test_v1591_assets_load_after_v159_and_pwa_cache_is_bumped():
+def test_v1591_assets_load_after_v159_and_remain_cached_in_later_releases():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
     assert "/app/comparison_credibility_v1591.css?v=1591" in html
     assert "/app/comparison_credibility_v1591.js?v=1591" in html
     assert html.index("comparable_progress_v159.js") < html.index("comparison_credibility_v1591.js")
-    assert "skin-ai-beta-v1591" in sw
+    assert "skin-ai-beta-v15" in sw
     assert "/app/comparison_credibility_v1591.css?v=1591" in sw
     assert "/app/comparison_credibility_v1591.js?v=1591" in sw
