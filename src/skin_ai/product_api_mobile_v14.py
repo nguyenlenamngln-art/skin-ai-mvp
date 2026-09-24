@@ -11,10 +11,12 @@ advisory warnings are present.
 import numpy as np
 
 from skin_ai.rgb_engine_v152 import RGBAnalysisEngine
+from skin_ai.comparison_v159 import stamp_comparison_match
 
 
 _CAPTURE_PROTOCOL_VERSION = "1.4"
 _ORIGINAL_QUALITY = RGBAnalysisEngine._quality
+_ORIGINAL_REFERENCE_QUALITY = RGBAnalysisEngine.apply_reference_capture_quality
 _BLOCKING_FLAGS = {
     "too_dark",
     "too_bright",
@@ -130,8 +132,18 @@ def _mobile_quality(image_rgb, face, skin_mask):
     return metrics
 
 
+def _reference_quality_v159(cls, current, reference):
+    out = _ORIGINAL_REFERENCE_QUALITY.__func__(cls, current, reference)
+    stamp_comparison_match(out, reference)
+    if out.get("comparison_match_available") and not out.get("comparison_match_eligible"):
+        out["longitudinal_eligible"] = False
+        out["longitudinal_reason"] = "comparison_match_low"
+    return out
+
+
 RGBAnalysisEngine._quality = staticmethod(_mobile_quality)
 RGBAnalysisEngine._reclassify_quality = classmethod(lambda cls, metrics: _classify_v14(metrics))
+RGBAnalysisEngine.apply_reference_capture_quality = classmethod(_reference_quality_v159)
 RGBAnalysisEngine.CAPTURE_PROTOCOL_VERSION = _CAPTURE_PROTOCOL_VERSION
 
 import skin_ai.product_api as product_api  # noqa: E402
