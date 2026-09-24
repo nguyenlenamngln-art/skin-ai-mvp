@@ -15,7 +15,6 @@ from skin_ai.study_access_v157 import (
     verify_session,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "web" / "index.html"
 TESTER_JS = ROOT / "web" / "tester_study_v157.js"
@@ -48,26 +47,17 @@ def test_v157_study_identity_and_summary(tmp_path):
     subject = store.create_subject(subject_id="study-subject", display_name="STUDY-P001", created_at="2026-09-23T00:00:00+00:00")
     _upsert_legacy_participants(store)
     _save_participant(store, "P001", subject["id"], access_hash("Access-Code-001"))
-
     metrics = {
-        "tracking_subject_id": subject["id"],
-        "tracking_subject_name": "STUDY-P001",
-        "tracking_region_code": "full_face",
-        "tracking_region_label": "Full face",
-        "tracking_series_key": "series-p001",
-        "scan_session_id": "session-001",
-        "rgb_engine_version": "1.5.2",
-        "capture_protocol_version": "1.4",
-        "capture_quality": "good",
-        "capture_quality_score": 91.0,
-        "longitudinal_eligible": True,
-        "redness_area_fraction": 0.031,
-        "pigmentation_area_fraction": 0.018,
-        "texture_index_proxy": 0.012,
+        "tracking_subject_id": subject["id"], "tracking_subject_name": "STUDY-P001",
+        "tracking_region_code": "full_face", "tracking_region_label": "Full face",
+        "tracking_series_key": "series-p001", "scan_session_id": "session-001",
+        "rgb_engine_version": "1.5.2", "capture_protocol_version": "1.4",
+        "capture_quality": "good", "capture_quality_score": 91.0,
+        "longitudinal_eligible": True, "redness_area_fraction": 0.031,
+        "pigmentation_area_fraction": 0.018, "texture_index_proxy": 0.012,
         "anatomical_skin_support_fraction": 0.94,
     }
     store.add_scan(scan_id="scan-001", created_at="2026-09-23T01:00:00+00:00", modality="rgb", source_name="capture.jpg", metrics=metrics, media_dir="/data/scans/scan-001")
-
     scan = store.get_scan("scan-001")
     assert study_tester_id_from_name("STUDY-P001") == "P001"
     assert is_study_scan(scan) is True
@@ -131,7 +121,7 @@ def test_v157_assets_are_loaded_and_remain_cached_in_later_releases():
     assert "/app/tester_study_v157.css?v=157" in html
     assert "/app/tester_study_v157.js?v=157" in html
     assert "tester_study_v156.js" not in html
-    assert "skin-ai-beta-v15" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/researcher.html" in sw
     assert "/app/researcher_v157.js?v=157" in sw
 

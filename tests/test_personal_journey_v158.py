@@ -71,7 +71,7 @@ def test_v158_assets_remain_loaded_when_later_ux_patches_are_added():
     assert "/app/personal_journey_v158.css?v=158" in html
     assert "/app/personal_journey_v158.js?v=158" in html
     assert html.index("tester_study_v157.js") < html.index("personal_journey_v158.js")
-    assert "skin-ai-beta-v15" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/personal_journey_v158.css?v=158" in sw
     assert "/app/personal_journey_v158.js?v=158" in sw
 

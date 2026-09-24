@@ -41,10 +41,7 @@ def test_v1591_scoring_version_and_strong_requires_complete_geometry():
 
 def test_v1591_tighter_scale_and_position_gate():
     reference = metrics()
-    current = metrics(
-        face_area_fraction=0.45,
-        face_bbox={"x": 190, "y": 120, "w": 330, "h": 400},
-    )
+    current = metrics(face_area_fraction=0.45, face_bbox={"x": 190, "y": 120, "w": 330, "h": 400})
     result = comparison_match(current, reference)
     assert result["comparison_match_label"] == "review"
     assert result["comparison_match_eligible"] is False
@@ -96,6 +93,6 @@ def test_v1591_assets_load_after_v159_and_remain_cached_in_later_releases():
     assert "/app/comparison_credibility_v1591.css?v=1591" in html
     assert "/app/comparison_credibility_v1591.js?v=1591" in html
     assert html.index("comparable_progress_v159.js") < html.index("comparison_credibility_v1591.js")
-    assert "skin-ai-beta-v15" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/comparison_credibility_v1591.css?v=1591" in sw
     assert "/app/comparison_credibility_v1591.js?v=1591" in sw
