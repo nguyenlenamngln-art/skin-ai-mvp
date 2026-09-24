@@ -1,7 +1,9 @@
 // Mobile Capture Guidance V1.2
 // Browser-side guidance only; backend remains authoritative.
+// V1.6.0.5: all visible live guidance resolves through active i18n before rendering.
 (function(){
   const mobileLike=()=>window.matchMedia('(max-width: 820px)').matches || /iPhone|Android|Mobile/i.test(navigator.userAgent||'')
+  const t=en=>{try{return window.skinCaptureI18n?.t?.(en)||window.skinI18n?.t?.(en)||en}catch(_e){return en}}
 
   const baseEval=window.cgEvaluateMetrics || cgEvaluateMetrics
   window.cgEvaluateMetrics=cgEvaluateMetrics=function(m){
@@ -16,11 +18,11 @@
   window.cgFriendlyPreflight=cgFriendlyPreflight=function(m){
     if(!mobileLike()) return basePreflight(m)
     const issues=[]
-    if(m.sourceWidth<420||m.sourceHeight<420)issues.push({level:'poor',label:'Low image resolution',help:'Use a higher-resolution capture so small skin features are not lost.'})
-    if(m.lighting==='poor')issues.push({level:'poor',label:'Lighting outside preferred range',help:'Use more even illumination and avoid very dark or blown-out areas.'})
-    else if(m.lighting==='warn')issues.push({level:'warn',label:'Lighting could be more even',help:'Try more neutral, even light before capture.'})
+    if(m.sourceWidth<420||m.sourceHeight<420)issues.push({level:'poor',label:t('Low image resolution'),help:t('Use a higher-resolution capture so small skin features are not lost.')})
+    if(m.lighting==='poor')issues.push({level:'poor',label:t('Lighting outside preferred range'),help:t('Use more even illumination and avoid very dark or blown-out areas.')})
+    else if(m.lighting==='warn')issues.push({level:'warn',label:t('Lighting could be more even'),help:t('Try more neutral, even light before capture.')})
     // Borderline phone sharpness is advisory and should not force a confirmation.
-    if(m.sharp==='poor')issues.push({level:'poor',label:'Image may be blurry',help:'Tap the face to refocus and hold steady briefly.'})
+    if(m.sharp==='poor')issues.push({level:'poor',label:t('Image may be blurry'),help:t('Tap the face to refocus and hold steady briefly.')})
     return issues
   }
 
@@ -31,23 +33,27 @@
     canvas.width=w;canvas.height=h
     const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,0,0,w,h)
     const image=ctx.getImageData(0,0,w,h),m=cgFrameMetrics(image,w,h),q=cgEvaluateMetrics(m)
-    cgSetCheck('lighting',cgStatusText(q.lighting,'Good','Adjust','Poor'),q.lighting)
-    cgSetCheck('sharpness',q.sharp==='good'?'Good':q.sharp==='warn'?'Usable':'Refocus',q.sharp)
+    cgSetCheck('lighting',q.lighting==='good'?t('Good'):q.lighting==='warn'?t('Adjust'):t('Poor'),q.lighting)
+    cgSetCheck('sharpness',q.sharp==='good'?t('Good'):q.sharp==='warn'?t('Usable'):t('Refocus'),q.sharp)
 
-    let stability='warn',label='Handheld'
+    let stability='warn',label=t('Handheld')
     if(captureGuidePrevFrame && captureGuidePrevFrame.length===m.gray.length){
       let diff=0
       for(let i=0;i<m.gray.length;i+=8)diff+=Math.abs(m.gray[i]-captureGuidePrevFrame[i])
       diff/=Math.max(1,Math.floor(m.gray.length/8))
       if(mobileLike()){
         stability=diff<5?'good':diff<14?'warn':'poor'
-        label=stability==='good'?'Stable':stability==='warn'?'Handheld':'Too much movement'
+        label=stability==='good'?t('Stable'):stability==='warn'?t('Move less'):t('Too much movement')
       }else{
         stability=diff<3.2?'good':diff<7?'warn':'poor'
-        label=stability==='good'?'Stable':stability==='warn'?'Hold steady':'Too much movement'
+        label=stability==='good'?t('Stable'):stability==='warn'?t('Hold steady'):t('Too much movement')
       }
     }
     captureGuidePrevFrame=m.gray
     cgSetCheck('stability',label,stability)
   }
+
+  window.addEventListener('skin-ai:locale-change',()=>{
+    try{if(document.querySelector('#cgCamera:not(.hidden)'))cgLiveSample()}catch(_e){}
+  })
 })();
