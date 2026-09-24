@@ -49,8 +49,8 @@ def test_v1584_is_presentation_only_and_measurement_is_frozen():
     assert '_CAPTURE_PROTOCOL_VERSION = "1.4"' in entry
 
 
-def test_v1584_pwa_cache_is_bumped():
+def test_v1584_assets_remain_cached_after_later_pwa_bumps():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1584" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/ios_nav_hotfix_v1584.css?v=1584" in sw
     assert "/app/ios_nav_hotfix_v1584.js?v=1584" in sw
