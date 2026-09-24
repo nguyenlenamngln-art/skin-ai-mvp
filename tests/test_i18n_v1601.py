@@ -100,7 +100,8 @@ def test_v1601_preserves_user_content_and_localizes_interface_attributes():
 
 def test_v1601_pwa_cache_contains_new_runtime():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1601" in sw
+    # Later releases may advance the global cache version, but the V1.6.0.1
+    # runtime and V1.6.0 localization CSS must remain available offline.
     assert "/app/i18n_v1601.js?v=1601" in sw
     assert "/app/i18n_v160.css?v=160" in sw
 
