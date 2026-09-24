@@ -4,6 +4,7 @@ let captureGuideStream=null
 let captureGuideTimer=null
 let captureGuidePrevFrame=null
 let captureGuidePendingFile=null
+const cgT=en=>{try{return window.skinCaptureI18n?.t?.(en)||window.skinI18n?.t?.(en)||en}catch(_e){return en}}
 
 function cgClamp(v,min,max){return Math.max(min,Math.min(max,v))}
 function cgCurrentRegion(){
@@ -16,9 +17,9 @@ function cgRegionLabel(){
   try{return typeof sessionRegionLabel==='function'?sessionRegionLabel(code):code.replaceAll('_',' ')}catch(_e){return code.replaceAll('_',' ')}
 }
 function cgInstruction(){
-  if(scanMode==='rgb') return 'Center the full face in the guide. Keep the phone level and use even frontal light.'
+  if(scanMode==='rgb') return cgT('Center the full face in the guide. Keep the phone level and use even frontal light.')
   const label=cgRegionLabel()
-  return `Position the ${label.toLowerCase()} close-up inside the guide. Keep device distance and angle consistent with prior captures.`
+  return cgT(`Position the ${label.toLowerCase()} close-up inside the guide. Keep device distance and angle consistent with prior captures.`)
 }
 function cgBuildUI(){
   const capture=document.querySelector('.capture')
@@ -28,22 +29,22 @@ function cgBuildUI(){
   panel.id='captureGuidanceV2'
   panel.className='captureGuidanceV2'
   panel.innerHTML=`
-    <div class="cgHeader"><div><span class="eyebrow">CAPTURE GUIDANCE V2</span><b>Improve repeatability before analysis</b></div><button type="button" class="secondaryMini" id="cgOpenCamera">Use camera</button></div>
+    <div class="cgHeader"><div><span class="eyebrow">${cgT('CAPTURE GUIDANCE V2')}</span><b>${cgT('Improve repeatability before analysis')}</b></div><button type="button" class="secondaryMini" id="cgOpenCamera">${cgT('Use camera')}</button></div>
     <div id="cgPreflight" class="cgPreflight hidden"></div>
     <div id="cgCamera" class="cgCamera hidden">
       <div class="cgStage">
         <video id="cgVideo" autoplay playsinline muted></video>
-        <div id="cgGuide" class="cgGuide"><span id="cgGuideLabel">Position region</span></div>
+        <div id="cgGuide" class="cgGuide"><span id="cgGuideLabel">${cgT('Position region')}</span></div>
       </div>
       <div class="cgLiveChecks">
-        <div data-cg-check="lighting"><span>Lighting</span><b>Checking…</b></div>
-        <div data-cg-check="sharpness"><span>Sharpness</span><b>Checking…</b></div>
-        <div data-cg-check="stability"><span>Stability</span><b>Checking…</b></div>
-        <div class="visual"><span>Position</span><b>Visual guide</b></div>
+        <div data-cg-check="lighting"><span>${cgT('Lighting')}</span><b>${cgT('Checking…')}</b></div>
+        <div data-cg-check="sharpness"><span>${cgT('Sharpness')}</span><b>${cgT('Checking…')}</b></div>
+        <div data-cg-check="stability"><span>${cgT('Stability')}</span><b>${cgT('Checking…')}</b></div>
+        <div class="visual"><span>${cgT('Position')}</span><b>${cgT('Visual guide')}</b></div>
       </div>
       <p id="cgInstruction"></p>
-      <div class="cgCameraActions"><button type="button" class="secondaryMini" id="cgCancelCamera">Cancel</button><button type="button" class="primary" id="cgCapture">Capture photo</button></div>
-      <small>Lighting, sharpness and stability are browser-side estimates. Position and distance remain visual guidance; the backend performs the final quality check.</small>
+      <div class="cgCameraActions"><button type="button" class="secondaryMini" id="cgCancelCamera">${cgT('Cancel')}</button><button type="button" class="primary" id="cgCapture">${cgT('Capture photo')}</button></div>
+      <small>${cgT('Lighting, sharpness and stability are browser-side estimates. Position and distance remain visual guidance; the backend performs the final quality check.')}</small>
       <canvas id="cgCanvas" class="hidden"></canvas>
     </div>`
   dropzone.insertAdjacentElement('beforebegin',panel)
@@ -93,7 +94,7 @@ async function cgStartCamera(){
     await video.play()
     captureGuideTimer=setInterval(cgLiveSample,350)
   }catch(e){
-    showError('Camera access was not available. You can still choose an image from your device.')
+    showError(cgT('Camera access was not available. You can still choose an image from your device.'))
     cgStopCamera()
   }
 }
@@ -111,14 +112,14 @@ function cgLiveSample(){
   canvas.width=w;canvas.height=h
   const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,0,0,w,h)
   const image=ctx.getImageData(0,0,w,h),m=cgFrameMetrics(image,w,h),q=cgEvaluateMetrics(m)
-  cgSetCheck('lighting',cgStatusText(q.lighting,'Good','Adjust','Poor'),q.lighting)
-  cgSetCheck('sharpness',cgStatusText(q.sharp,'Good','Hold steady','Refocus'),q.sharp)
-  let stability='warn',label='Hold steady'
+  cgSetCheck('lighting',q.lighting==='good'?cgT('Good'):q.lighting==='warn'?cgT('Adjust'):cgT('Poor'),q.lighting)
+  cgSetCheck('sharpness',q.sharp==='good'?cgT('Good'):q.sharp==='warn'?cgT('Hold steady'):cgT('Refocus'),q.sharp)
+  let stability='warn',label=cgT('Hold steady')
   if(captureGuidePrevFrame && captureGuidePrevFrame.length===m.gray.length){
     let diff=0;for(let i=0;i<m.gray.length;i+=8)diff+=Math.abs(m.gray[i]-captureGuidePrevFrame[i])
     diff/=Math.max(1,Math.floor(m.gray.length/8))
     stability=diff<3.2?'good':diff<7?'warn':'poor'
-    label=stability==='good'?'Stable':stability==='warn'?'Hold steady':'Too much movement'
+    label=stability==='good'?cgT('Stable'):stability==='warn'?cgT('Hold steady'):cgT('Too much movement')
   }
   captureGuidePrevFrame=m.gray
   cgSetCheck('stability',label,stability)
@@ -145,11 +146,11 @@ async function cgImageMetrics(file){
 }
 function cgFriendlyPreflight(m){
   const issues=[]
-  if(m.sourceWidth<480||m.sourceHeight<480)issues.push({level:'poor',label:'Low image resolution',help:'Use a higher-resolution capture so small skin features are not lost.'})
-  if(m.lighting==='poor')issues.push({level:'poor',label:'Lighting outside preferred range',help:'Use more even illumination and avoid very dark or blown-out areas.'})
-  else if(m.lighting==='warn')issues.push({level:'warn',label:'Lighting could be more even',help:'Try more neutral, even light before capture.'})
-  if(m.sharp==='poor')issues.push({level:'poor',label:'Image may be blurry',help:'Refocus and hold the phone steady.'})
-  else if(m.sharp==='warn')issues.push({level:'warn',label:'Sharpness is borderline',help:'Hold steady and refocus before capture.'})
+  if(m.sourceWidth<480||m.sourceHeight<480)issues.push({level:'poor',label:cgT('Low image resolution'),help:cgT('Use a higher-resolution capture so small skin features are not lost.')})
+  if(m.lighting==='poor')issues.push({level:'poor',label:cgT('Lighting outside preferred range'),help:cgT('Use more even illumination and avoid very dark or blown-out areas.')})
+  else if(m.lighting==='warn')issues.push({level:'warn',label:cgT('Lighting could be more even'),help:cgT('Try more neutral, even light before capture.')})
+  if(m.sharp==='poor')issues.push({level:'poor',label:cgT('Image may be blurry'),help:cgT('Refocus and hold the phone steady.')})
+  else if(m.sharp==='warn')issues.push({level:'warn',label:cgT('Sharpness is borderline'),help:cgT('Hold steady and refocus before capture.')})
   return issues
 }
 function cgRenderPreflight(file,m,issues){
@@ -157,13 +158,13 @@ function cgRenderPreflight(file,m,issues){
   const severe=issues.some(x=>x.level==='poor')
   box.classList.remove('hidden','good','warn','poor');box.classList.add(severe?'poor':issues.length?'warn':'good')
   if(!issues.length){
-    box.innerHTML=`<div><span class="eyebrow">PRE-CAPTURE CHECK</span><b>Ready for backend quality check</b><small>${m.sourceWidth}×${m.sourceHeight} · exposure and sharpness look acceptable.</small></div>`
+    box.innerHTML=`<div><span class="eyebrow">${cgT('PRE-CAPTURE CHECK')}</span><b>${cgT('Ready for backend quality check')}</b><small>${m.sourceWidth}×${m.sourceHeight} · ${cgT('exposure and sharpness look acceptable.')}</small></div>`
     setTimeout(()=>box.classList.add('hidden'),1400);return
   }
-  box.innerHTML=`<div class="cgPreflightHead"><div><span class="eyebrow">PRE-CAPTURE CHECK</span><b>${severe?'Retake recommended':'Capture can be improved'}</b></div><span>${issues.length} issue${issues.length===1?'':'s'}</span></div>
+  box.innerHTML=`<div class="cgPreflightHead"><div><span class="eyebrow">${cgT('PRE-CAPTURE CHECK')}</span><b>${cgT(severe?'Retake recommended':'Capture can be improved')}</b></div><span>${issues.length} ${cgT(issues.length===1?'issue':'issues')}</span></div>
     <div class="cgIssueList">${issues.map(x=>`<div class="${x.level}"><b>${x.label}</b><small>${x.help}</small></div>`).join('')}</div>
-    <div class="cgPreflightActions"><button type="button" class="secondaryMini" id="cgRetake">Choose another image</button><button type="button" class="primary" id="cgContinue">Analyze anyway</button></div>
-    <small>These browser checks are advisory. The server-side RGB/UV quality gates remain authoritative.</small>`
+    <div class="cgPreflightActions"><button type="button" class="secondaryMini" id="cgRetake">${cgT('Choose another image')}</button><button type="button" class="primary" id="cgContinue">${cgT('Analyze anyway')}</button></div>
+    <small>${cgT('These browser checks are advisory. The server-side RGB/UV quality gates remain authoritative.')}</small>`
   document.querySelector('#cgRetake').onclick=()=>{captureGuidePendingFile=null;box.classList.add('hidden');document.querySelector('#fileInput')?.click()}
   document.querySelector('#cgContinue').onclick=()=>{const pending=captureGuidePendingFile;captureGuidePendingFile=null;box.classList.add('hidden');if(pending)cgRunBaseUpload(pending)}
 }
@@ -180,28 +181,25 @@ async function cgHandleFile(file){
     captureGuidePendingFile=file
     cgRenderPreflight(file,m,issues)
     if(!issues.length){captureGuidePendingFile=null;await cgRunBaseUpload(file)}
-  }catch(_e){
-    captureGuidePendingFile=null;await cgRunBaseUpload(file)
-  }
+  }catch(_e){captureGuidePendingFile=null;await cgRunBaseUpload(file)}
 }
 function cgInstallUploadPreflight(){
   const input=document.querySelector('#fileInput');if(!input||input.dataset.cgV2==='1')return
-  input.dataset.cgV2='1'
-  cgBaseUploadHandler=input.onchange
-  input.onchange=async e=>{
-    const file=e.target.files?.[0];e.target.value=''
-    if(!file)return
-    await cgHandleFile(file)
-  }
+  input.dataset.cgV2='1';cgBaseUploadHandler=input.onchange
+  input.onchange=async e=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;await cgHandleFile(file)}
 }
 
 const cgApplyModeBase=applyModeUI
 applyModeUI=function(){
-  cgApplyModeBase()
-  cgBuildUI()
+  cgApplyModeBase();cgBuildUI()
   const label=document.querySelector('#cgGuideLabel');if(label)label.textContent=cgRegionLabel()
   const inst=document.querySelector('#cgInstruction');if(inst)inst.textContent=cgInstruction()
 }
+
+window.addEventListener('skin-ai:locale-change',()=>{
+  const panel=document.querySelector('#captureGuidanceV2')
+  if(panel){panel.remove();cgBuildUI();if(captureGuideStream){document.querySelector('#cgCamera')?.classList.remove('hidden');document.querySelector('#cgGuideLabel').textContent=cgRegionLabel();document.querySelector('#cgInstruction').textContent=cgInstruction()}}
+})
 
 cgBuildUI();cgInstallUploadPreflight()
 setTimeout(()=>{cgBuildUI();cgInstallUploadPreflight()},100)
