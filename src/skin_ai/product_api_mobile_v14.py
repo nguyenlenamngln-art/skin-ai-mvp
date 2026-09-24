@@ -120,6 +120,15 @@ def _mobile_quality(image_rgb, face, skin_mask):
         flags.append("segmentation_variation")
         guidance.append("Outer skin-boundary consistency was acceptable but not ideal; use even frontal light for repeat scans.")
 
+    h, w = image_rgb.shape[:2]
+    x, y, fw, fh = face
+    metrics["capture_image_width_px"] = int(w)
+    metrics["capture_image_height_px"] = int(h)
+    metrics["face_center_x_fraction"] = float((x + fw / 2.0) / max(1, w))
+    metrics["face_center_y_fraction"] = float((y + fh / 2.0) / max(1, h))
+    metrics["face_width_fraction"] = float(fw / max(1, w))
+    metrics["face_height_fraction"] = float(fh / max(1, h))
+
     metrics["quality_flags"] = list(dict.fromkeys(flags))
     metrics["quality_guidance"] = list(dict.fromkeys(guidance))
     metrics["capture_protocol_version"] = _CAPTURE_PROTOCOL_VERSION
