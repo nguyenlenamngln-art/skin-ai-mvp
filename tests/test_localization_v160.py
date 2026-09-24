@@ -18,7 +18,8 @@ def test_v160_assets_remain_available_and_vietnamese_is_default():
     # The original V1.6.0 runtime remains in the repository as historical source,
     # while a later localization runtime may supersede it in the live app shell.
     assert JS.exists()
-    assert html.index('mobile_comparison_registration_v1593.js') < html.index('i18n_v160')
+    assert '/app/i18n_v1601.js?v=1601' in html
+    assert html.index('mobile_comparison_registration_v1593.js') < html.index('/app/i18n_v1601.js?v=1601')
 
 
 def test_v160_has_persistent_vi_en_switch_and_translation_api():
