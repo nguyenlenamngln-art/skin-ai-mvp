@@ -9,12 +9,17 @@ MANIFEST = ROOT / "web" / "manifest.webmanifest"
 ENTRY = ROOT / "src" / "skin_ai" / "product_api_mobile_v14.py"
 
 
-def test_v160_assets_are_loaded_last_and_vietnamese_is_default():
+def test_v160_assets_remain_available_and_vietnamese_is_default():
     html = INDEX.read_text(encoding="utf-8")
+    sw = SW.read_text(encoding="utf-8")
     assert '<html lang="vi">' in html
     assert '/app/i18n_v160.css?v=160' in html
-    assert '/app/i18n_v160.js?v=160' in html
-    assert html.index('mobile_comparison_registration_v1593.js') < html.index('i18n_v160.js')
+    assert '/app/i18n_v160.css?v=160' in sw
+    # The original V1.6.0 runtime remains in the repository as historical source,
+    # while a later localization runtime may supersede it in the live app shell.
+    assert JS.exists()
+    assert '/app/i18n_v1601.js?v=1601' in html
+    assert html.index('mobile_comparison_registration_v1593.js') < html.index('/app/i18n_v1601.js?v=1601')
 
 
 def test_v160_has_persistent_vi_en_switch_and_translation_api():
@@ -39,9 +44,9 @@ def test_v160_localizes_core_tester_navigation_and_product_copy():
         "Làn da hôm nay",
         "Tổng quan hôm nay",
         "Độ phù hợp để so sánh",
-        "Trước & Sau" if False else "TRƯỚC & SAU",
+        "TRƯỚC & SAU",
         "Mở camera",
-        "Nhật ký da" if False else "NHẬT KÝ DA",
+        "NHẬT KÝ DA",
     ):
         assert vietnamese in js
 
@@ -62,7 +67,6 @@ def test_v160_pwa_is_vietnamese_first_and_cached_offline():
     manifest = MANIFEST.read_text(encoding="utf-8")
     assert "skin-ai-beta-v160" in sw
     assert "/app/i18n_v160.css?v=160" in sw
-    assert "/app/i18n_v160.js?v=160" in sw
     assert '"lang": "vi"' in manifest
     assert "Theo dõi da cá nhân" in manifest
 
