@@ -1,0 +1,38 @@
+/* V1.5.9.3 — Mobile Comparison Registration Patch */
+.pjCompareFrame.v1593Registered{
+  position:relative!important;
+  overflow:hidden!important;
+  width:100%!important;
+  max-width:none!important;
+  aspect-ratio:auto!important;
+  background:#e9ede8!important;
+}
+.pjCompareFrame.v1593Registered .pjCompareBase,
+.pjCompareFrame.v1593Registered .pjCompareReveal img{
+  object-fit:unset!important;
+  max-width:none!important;
+  max-height:none!important;
+  will-change:transform,left,top,width,height;
+}
+.pjCompareFrame.v1593Registered .pjCompareReveal{
+  position:absolute!important;
+  inset:0!important;
+  overflow:hidden!important;
+}
+@media(max-width:820px){
+  .pjCompareFrame.v159Aligned.v1593Registered{
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:3/4!important;
+    min-height:0!important;
+    max-height:none!important;
+    border-radius:22px!important;
+    background:#e9ede8!important;
+  }
+  .pjCompareFrame.v1593Registered .pjCompareBase,
+  .pjCompareFrame.v1593Registered .pjCompareReveal img{
+    position:absolute!important;
+  }
+  .pjCompareTag{bottom:14px!important}
+  .pjCompareNote{line-height:1.45}
+}
