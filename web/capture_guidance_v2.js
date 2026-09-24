@@ -196,10 +196,17 @@ applyModeUI=function(){
   const inst=document.querySelector('#cgInstruction');if(inst)inst.textContent=cgInstruction()
 }
 
-window.addEventListener('skin-ai:locale-change',()=>{
-  const panel=document.querySelector('#captureGuidanceV2')
-  if(panel){panel.remove();cgBuildUI();if(captureGuideStream){document.querySelector('#cgCamera')?.classList.remove('hidden');document.querySelector('#cgGuideLabel').textContent=cgRegionLabel();document.querySelector('#cgInstruction').textContent=cgInstruction()}}
-})
+function cgRelocalizeActiveUI(){
+  const panel=document.querySelector('#captureGuidanceV2');if(!panel)return
+  const pairs=[['.cgHeader .eyebrow','CAPTURE GUIDANCE V2'],['.cgHeader b','Improve repeatability before analysis'],['#cgOpenCamera','Use camera'],['[data-cg-check="lighting"] span','Lighting'],['[data-cg-check="sharpness"] span','Sharpness'],['[data-cg-check="stability"] span','Stability'],['.visual span','Position'],['.visual b','Visual guide'],['#cgCancelCamera','Cancel'],['#cgCapture','Capture photo']]
+  pairs.forEach(([selector,en])=>{const el=panel.querySelector(selector);if(el)el.textContent=cgT(en)})
+  const label=panel.querySelector('#cgGuideLabel');if(label)label.textContent=cgRegionLabel()
+  const inst=panel.querySelector('#cgInstruction');if(inst)inst.textContent=cgInstruction()
+  const note=panel.querySelector('#cgCamera > small');if(note)note.textContent=cgT('Lighting, sharpness and stability are browser-side estimates. Position and distance remain visual guidance; the backend performs the final quality check.')
+  try{if(captureGuideStream)cgLiveSample()}catch(_e){}
+}
+window.addEventListener('skin-ai:locale-change',cgRelocalizeActiveUI)
+window.addEventListener('skin-ai:capture-i18n-ready',cgRelocalizeActiveUI)
 
 cgBuildUI();cgInstallUploadPreflight()
 setTimeout(()=>{cgBuildUI();cgInstallUploadPreflight()},100)
