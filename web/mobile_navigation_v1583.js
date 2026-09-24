@@ -7,18 +7,24 @@
   const navLabels={home:'Today',progress:'Progress',scan:'+ Scan',routine:'Routine',journey:'Journey'}
   let scheduled=false
 
+  function ui(en){
+    try{return window.skinI18n?.t?window.skinI18n.t(en):en}catch(_e){return en}
+  }
   function activeTab(){
     return document.querySelector('main>.view.active')?.id || 'home'
   }
   function syncTitle(tab=activeTab()){
     const el=document.querySelector('#title')
-    if(el && titles[tab] && el.textContent!==titles[tab]) el.textContent=titles[tab]
+    const target=titles[tab]?ui(titles[tab]):''
+    if(el && target && el.textContent!==target) el.textContent=target
   }
   function syncNavigation(){
     document.querySelectorAll('aside nav [data-tab]').forEach(button=>{
       const label=navLabels[button.dataset.tab]
-      if(label && button.textContent!==label) button.textContent=label
-      button.setAttribute('aria-label',button.dataset.tab==='scan'?'Take a skin scan':label||button.dataset.tab)
+      const target=label?ui(label):''
+      if(target && button.textContent!==target) button.textContent=target
+      const aria=button.dataset.tab==='scan'?ui('Take a skin scan'):(target||button.dataset.tab)
+      if(button.getAttribute('aria-label')!==aria) button.setAttribute('aria-label',aria)
     })
   }
   function simplifyCapture(){
@@ -30,33 +36,46 @@
     const guide=document.querySelector('#captureGuidanceV2')
     if(guide){
       const title=guide.querySelector('.cgHeader b')
-      if(title && title.textContent!=='Take a clear photo') title.textContent='Take a clear photo'
+      const titleText=ui('Take a clear photo')
+      if(title && title.textContent!==titleText) title.textContent=titleText
       const camera=guide.querySelector('#cgOpenCamera')
-      if(camera && camera.textContent!=='Open camera') camera.textContent='Open camera'
+      const cameraText=ui('Open camera')
+      if(camera && camera.textContent!==cameraText) camera.textContent=cameraText
       let hint=guide.querySelector('.uxCaptureHint')
       if(!hint){
         hint=document.createElement('small')
         hint.className='uxCaptureHint'
         guide.querySelector('.cgHeader>div')?.appendChild(hint)
       }
-      if(hint && hint.textContent!=='Even light · Face centered · Hold steady') hint.textContent='Even light · Face centered · Hold steady'
+      const hintText=ui('Even light · Face centered · Hold steady')
+      if(hint && hint.textContent!==hintText) hint.textContent=hintText
     }
 
     const uploadTitle=document.querySelector('#uploadTitle')
-    if(uploadTitle && typeof scanMode!=='undefined' && scanMode==='rgb' && uploadTitle.textContent!=='Or upload a photo') uploadTitle.textContent='Or upload a photo'
+    const uploadTitleText=ui('Or upload a photo')
+    if(uploadTitle && typeof scanMode!=='undefined' && scanMode==='rgb' && uploadTitle.textContent!==uploadTitleText) uploadTitle.textContent=uploadTitleText
     const uploadHelp=document.querySelector('#uploadHelp')
-    if(uploadHelp && typeof scanMode!=='undefined' && scanMode==='rgb' && uploadHelp.textContent!=='Neutral light · no beauty filters') uploadHelp.textContent='Neutral light · no beauty filters'
+    const uploadHelpText=ui('Neutral light · no beauty filters')
+    if(uploadHelp && typeof scanMode!=='undefined' && scanMode==='rgb' && uploadHelp.textContent!==uploadHelpText) uploadHelp.textContent=uploadHelpText
     const choose=document.querySelector('#dropContent .choose')
-    if(choose && choose.textContent!=='Choose photo') choose.textContent='Choose photo'
+    const chooseText=ui('Choose photo')
+    if(choose && choose.textContent!==chooseText) choose.textContent=chooseText
     const tips=document.querySelector('#captureTips')
-    if(tips && typeof scanMode!=='undefined' && scanMode==='rgb') tips.innerHTML='<span>For repeat scans, use similar lighting, distance and angle.</span>'
+    if(tips && typeof scanMode!=='undefined' && scanMode==='rgb'){
+      const tip=ui('For repeat scans, use similar lighting, distance and angle.')
+      const current=tips.querySelector('span')?.textContent||''
+      if(current!==tip) tips.innerHTML=`<span>${tip}</span>`
+    }
   }
   function simplifyStudyAccess(){
     if(!isPhone())return
     const study=document.querySelector('#studyModeV157')
     if(!study)return
     const header=study.querySelector('.studyHeader')
-    if(header) header.setAttribute('aria-label','Optional tester study access')
+    if(header){
+      const label=ui('Optional tester study access')
+      if(header.getAttribute('aria-label')!==label) header.setAttribute('aria-label',label)
+    }
   }
   function mobileEnhance(){
     scheduled=false
@@ -92,6 +111,7 @@
     if(event.target.closest('[data-tab],[data-go],[data-mode],#cgOpenCamera,#cgCancelCamera')) setTimeout(schedule,0)
   })
   window.addEventListener('resize',schedule)
+  window.addEventListener('skin-ai:locale-change',schedule)
   new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true})
   setTimeout(mobileEnhance,0)
 })()
