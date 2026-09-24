@@ -1,0 +1,27 @@
+/* V1.5.9.2 — Visual Registration & Comparison Layout */
+.pjCompareFrame.v159Aligned.v1592Registered{
+  width:100%!important;
+  max-width:none!important;
+  aspect-ratio:auto!important;
+  height:clamp(460px,52vw,640px)!important;
+  margin:0!important;
+}
+.pjCompareFrame.v1592Registered .pjCompareBase,
+.pjCompareFrame.v1592Registered .pjCompareReveal img{
+  object-fit:unset!important;
+  max-width:none!important;
+  max-height:none!important;
+  will-change:transform,left,top,width,height;
+}
+.pjCompareFrame.v1592Registered .pjCompareReveal{
+  position:absolute!important;
+  inset:0!important;
+  overflow:hidden!important;
+}
+@media(max-width:820px){
+  .pjCompareFrame.v159Aligned.v1592Registered{
+    height:min(118vw,620px)!important;
+    width:100%!important;
+    aspect-ratio:auto!important;
+  }
+}

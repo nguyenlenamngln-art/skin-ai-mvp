@@ -149,3 +149,15 @@
   document.addEventListener('click',e=>{if(e.target.closest('[data-tab]'))setTimeout(schedule,30)})
   setTimeout(enhance,0)
 })()
+
+// V1.5.9.2 is deliberately loaded from the stable credibility layer so the app
+// shell and older product layers remain untouched.
+(function(){
+  if(document.querySelector('link[data-v1592]'))return
+  const link=document.createElement('link')
+  link.rel='stylesheet';link.href='/app/visual_registration_v1592.css?v=1592';link.dataset.v1592='1'
+  document.head.appendChild(link)
+  const script=document.createElement('script')
+  script.src='/app/visual_registration_v1592.js?v=1592';script.dataset.v1592='1'
+  document.body.appendChild(script)
+})()
