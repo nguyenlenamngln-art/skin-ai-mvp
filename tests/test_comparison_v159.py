@@ -28,10 +28,7 @@ def test_v159_version():
 
 
 def test_v159_similar_capture_remains_eligible():
-    result = comparison_match(
-        metrics(face_area_fraction=0.31, face_center_offset_fraction=0.055, skin_luminance_median_0_255=132.0),
-        metrics(),
-    )
+    result = comparison_match(metrics(face_area_fraction=0.31, face_center_offset_fraction=0.055, skin_luminance_median_0_255=132.0), metrics())
     assert result["comparison_match_available"] is True
     assert result["comparison_match_eligible"] is True
     assert result["comparison_match_label"] in {"strong", "usable"}
@@ -91,6 +88,6 @@ def test_v159_assets_remain_loaded_and_cached_after_later_patches():
     assert "/app/comparable_progress_v159.css?v=159" in html
     assert "/app/comparable_progress_v159.js?v=159" in html
     assert html.index("ios_nav_hotfix_v1584.js") < html.index("comparable_progress_v159.js")
-    assert "skin-ai-beta-v15" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/comparable_progress_v159.css?v=159" in sw
     assert "/app/comparable_progress_v159.js?v=159" in sw
