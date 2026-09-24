@@ -30,7 +30,8 @@ def test_v1602_runtime_patch_is_loaded_last_and_cached():
     assert asset in html
     assert asset in sw
     assert html.index("i18n_v1601.js?v=1601") < html.index("localization_runtime_patch_v1602.js?v=1602")
-    assert "skin-ai-beta-v1602" in sw
+    # Later localization releases may advance the global PWA cache version.
+    assert "const CACHE='skin-ai-beta-v" in sw
 
 
 def test_v1602_does_not_touch_measurement_engine():
