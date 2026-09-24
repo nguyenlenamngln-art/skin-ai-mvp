@@ -75,6 +75,6 @@ def test_v1582_mobile_routine_spacing_remains_touch_friendly():
 
 def test_v1582_assets_remain_cached_after_later_pwa_bumps():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v158" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/ux_polish_v1581.css?v=1581" in sw
     assert "/app/ux_polish_v1581.js?v=1581" in sw
