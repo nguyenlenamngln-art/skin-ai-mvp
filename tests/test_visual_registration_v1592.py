@@ -35,7 +35,8 @@ def test_v1592_registration_goes_beyond_face_box_centering():
     assert "angles=[-4,0,4]" in js
     assert "scales=[.97,1,1.03]" in js
     assert "geometry+residual" in js
-    assert "geometry-only fallback" in js
+    assert "best.score>1.55" in js
+    assert "residual?'geometry+residual':'geometry'" in js
 
 
 def test_v1592_registration_is_presentation_only():
