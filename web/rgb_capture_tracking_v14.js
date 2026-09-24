@@ -3,6 +3,7 @@
   let distanceTimer=null
   let distanceBusy=false
   let defaultProfileId=''
+  const t=en=>{try{return window.skinCaptureI18n?.t?.(en)||window.skinI18n?.t?.(en)||en}catch(_e){return en}}
 
   function isRgb(){ return typeof scanMode!=='undefined' && scanMode==='rgb' }
 
@@ -15,14 +16,16 @@
       if(!cell.parentNode) checks.appendChild(cell)
       cell.classList.remove('visual')
       cell.dataset.cgCheck='distance'
-      cell.innerHTML='<span>Distance</span><b>Checking…</b>'
+      cell.innerHTML=`<span>${t('Distance')}</span><b>${t('Checking…')}</b>`
+    }else{
+      const span=cell.querySelector('span');if(span)span.textContent=t('Distance')
     }
     const note=document.querySelector('#cgCamera > small')
-    if(note && isRgb()) note.textContent='Lighting, sharpness and stability are browser estimates. Distance uses a temporary low-resolution server check with the same face detector as analysis; preview frames are not saved.'
+    if(note && isRgb()) note.textContent=t('Lighting, sharpness and stability are browser estimates. Distance uses a temporary low-resolution server check with the same face detector as analysis; preview frames are not saved.')
   }
 
   function setDistance(label,state){
-    if(typeof cgSetCheck==='function') cgSetCheck('distance',label,state)
+    if(typeof cgSetCheck==='function') cgSetCheck('distance',t(label),state)
   }
 
   async function sampleDistance(){
@@ -46,30 +49,15 @@
       else setDistance('Move closer','warn')
     }catch(_e){
       setDistance('Use face guide','warn')
-    }finally{
-      distanceBusy=false
-    }
+    }finally{distanceBusy=false}
   }
 
-  function stopDistance(){
-    if(distanceTimer){clearInterval(distanceTimer);distanceTimer=null}
-    distanceBusy=false
-  }
-  function startDistance(){
-    stopDistance();ensureDistanceCell()
-    if(!isRgb()) return
-    setDistance('Checking…','warn')
-    setTimeout(sampleDistance,250)
-    distanceTimer=setInterval(sampleDistance,950)
-  }
+  function stopDistance(){if(distanceTimer){clearInterval(distanceTimer);distanceTimer=null}distanceBusy=false}
+  function startDistance(){stopDistance();ensureDistanceCell();if(!isRgb())return;setDistance('Checking…','warn');setTimeout(sampleDistance,250);distanceTimer=setInterval(sampleDistance,950)}
 
   if(typeof cgStartCamera==='function'){
     const baseStart=cgStartCamera
-    cgStartCamera=async function(){
-      const out=await baseStart()
-      ensureDistanceCell();startDistance()
-      return out
-    }
+    cgStartCamera=async function(){const out=await baseStart();ensureDistanceCell();startDistance();return out}
     window.cgStartCamera=cgStartCamera
   }
   if(typeof cgStopCamera==='function'){
@@ -80,74 +68,53 @@
 
   function wireCameraButton(){
     ensureDistanceCell()
-    const open=document.querySelector('#cgOpenCamera')
-    const cancel=document.querySelector('#cgCancelCamera')
-    const capture=document.querySelector('#cgCapture')
-    if(open && typeof cgStartCamera==='function') open.onclick=cgStartCamera
-    if(cancel && typeof cgStopCamera==='function') cancel.onclick=cgStopCamera
-    if(capture && typeof cgCaptureFrame==='function') capture.onclick=cgCaptureFrame
+    const open=document.querySelector('#cgOpenCamera'),cancel=document.querySelector('#cgCancelCamera'),capture=document.querySelector('#cgCapture')
+    if(open&&typeof cgStartCamera==='function')open.onclick=cgStartCamera
+    if(cancel&&typeof cgStopCamera==='function')cancel.onclick=cgStopCamera
+    if(capture&&typeof cgCaptureFrame==='function')capture.onclick=cgCaptureFrame
   }
 
   async function ensureDefaultProfile(){
     try{
-      if(typeof api!=='function') return
+      if(typeof api!=='function')return
       let subjects=await api('/v1/subjects')
-      let mine=subjects.find(x=>x.id==='my_profile' || String(x.display_name||'').toLowerCase()==='my profile')
-      if(!mine) mine=await api('/v1/subjects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({display_name:'My profile'})})
-      subjects=await api('/v1/subjects')
-      mine=subjects.find(x=>x.id===mine.id) || mine
-      defaultProfileId=mine.id
-      if(typeof trackingSubjects!=='undefined') trackingSubjects=subjects
+      let mine=subjects.find(x=>x.id==='my_profile'||String(x.display_name||'').toLowerCase()==='my profile')
+      if(!mine)mine=await api('/v1/subjects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({display_name:'My profile'})})
+      subjects=await api('/v1/subjects');mine=subjects.find(x=>x.id===mine.id)||mine;defaultProfileId=mine.id
+      if(typeof trackingSubjects!=='undefined')trackingSubjects=subjects
       applyDefaultTracking()
-    }catch(_e){
-      // Backend still applies My profile / Full face when both fields are blank.
-    }
+    }catch(_e){}
   }
 
   function applyDefaultTracking(){
-    if(typeof trackingSubjectId==='undefined' || typeof trackingRegionCode==='undefined') return
+    if(typeof trackingSubjectId==='undefined'||typeof trackingRegionCode==='undefined')return
     if(isRgb()){
-      if(!trackingSubjectId && !trackingRegionCode && defaultProfileId){
-        trackingSubjectId=defaultProfileId
-        trackingRegionCode='full_face'
-      }
-    }else if(defaultProfileId && trackingSubjectId===defaultProfileId && (!trackingRegionCode || trackingRegionCode==='full_face')){
-      trackingSubjectId=''
-      trackingRegionCode=''
-    }
-    if(typeof populateTrackingControls==='function') populateTrackingControls()
+      if(!trackingSubjectId&&!trackingRegionCode&&defaultProfileId){trackingSubjectId=defaultProfileId;trackingRegionCode='full_face'}
+    }else if(defaultProfileId&&trackingSubjectId===defaultProfileId&&(!trackingRegionCode||trackingRegionCode==='full_face')){trackingSubjectId='';trackingRegionCode=''}
+    if(typeof populateTrackingControls==='function')populateTrackingControls()
     const box=document.querySelector('#trackingContext small')
-    if(box) box.textContent=isRgb()?'Phone RGB defaults to My profile · Full face. Choose another profile only when needed.':'Choose both profile and region for longitudinal comparison, or leave both blank for analysis-only.'
+    if(box)box.textContent=t(isRgb()?'Phone RGB defaults to My profile · Full face. Choose another profile only when needed.':'Choose both profile and region for longitudinal comparison, or leave both blank for analysis-only.')
   }
 
   if(typeof applyModeUI==='function'){
     const baseApply=applyModeUI
-    applyModeUI=function(){
-      const out=baseApply()
-      applyDefaultTracking();wireCameraButton()
-      if(!isRgb()) stopDistance()
-      return out
-    }
+    applyModeUI=function(){const out=baseApply();applyDefaultTracking();wireCameraButton();if(!isRgb())stopDistance();return out}
   }
 
-  // Make advisory warnings visible without treating them as failed quality.
   if(typeof renderResult==='function'){
     const baseRender=renderResult
     renderResult=function(){
       baseRender()
-      if(!latest || latest.modality!=='rgb' || rejectedAttempt) return
-      const warnings=latest.metrics?.quality_warnings||[]
-      const blockers=latest.metrics?.quality_blockers||[]
-      const body=document.querySelector('#resultBody')
-      if(!body || (!warnings.length && !blockers.length)) return
+      if(!latest||latest.modality!=='rgb'||rejectedAttempt)return
+      const warnings=latest.metrics?.quality_warnings||[],blockers=latest.metrics?.quality_blockers||[],body=document.querySelector('#resultBody')
+      if(!body||(!warnings.length&&!blockers.length))return
       const note=document.createElement('div');note.className='scienceNote'
-      if(blockers.length) note.innerHTML=`<b>Quality blockers.</b> ${blockers.join(', ')}.`
-      else note.innerHTML=`<b>Advisory capture notes.</b> ${warnings.join(', ')}. These warnings do not by themselves block a good-quality scan from longitudinal tracking.`
+      if(blockers.length)note.innerHTML=`<b>${t('Quality blockers.')}</b> ${blockers.join(', ')}.`
+      else note.innerHTML=`<b>${t('Advisory capture notes.')}</b> ${warnings.join(', ')}. ${t('These warnings do not by themselves block a good-quality scan from longitudinal tracking.')}`
       body.appendChild(note)
     }
   }
 
-  wireCameraButton()
-  setTimeout(wireCameraButton,150)
-  setTimeout(ensureDefaultProfile,250)
+  window.addEventListener('skin-ai:locale-change',()=>{ensureDistanceCell();applyDefaultTracking();wireCameraButton()})
+  wireCameraButton();setTimeout(wireCameraButton,150);setTimeout(ensureDefaultProfile,250)
 })();
