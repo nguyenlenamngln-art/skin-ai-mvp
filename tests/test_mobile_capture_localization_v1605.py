@@ -86,7 +86,8 @@ def test_v1605_locale_switch_keeps_camera_dom_in_place():
 
 def test_v1605_pwa_cache_bumped():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v1605" in sw
+    # Later releases may advance the global PWA cache version.
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/capture_guidance_mobile_v12.js?v=12" in sw
     assert "/app/rgb_capture_tracking_v14.js?v=14" in sw
     assert "/app/comparable_progress_v159.js?v=159" in sw
