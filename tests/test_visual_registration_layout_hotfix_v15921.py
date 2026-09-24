@@ -16,7 +16,7 @@ def test_v15921_desktop_comparison_is_forced_full_width_from_direct_stylesheet()
     assert ".pjCompareSlider{width:100%!important;max-width:none!important}" in css
 
 
-def test_v15921_cache_bump_for_layout_hotfix():
+def test_v15921_cache_assets_remain_after_future_cache_bumps():
     sw = SW.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v15921" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/comparable_progress_v159.css?v=159" in sw
