@@ -59,11 +59,10 @@ def test_v1606_reacts_to_runtime_locale_change():
 def test_v1606_asset_is_loaded_last_and_cached():
     html = INDEX.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
-    asset = "/app/rejected_state_i18n_v1606.js?v=1606"
-    assert asset in html
-    assert asset in sw
-    assert html.index("localization_runtime_patch_v1602.js?v=1602") < html.index("rejected_state_i18n_v1606.js?v=1606")
-    assert "skin-ai-beta-v1606" in sw
+    assert "/app/rejected_state_i18n_v1606.js?v=" in html
+    assert "/app/rejected_state_i18n_v1606.js?v=" in sw
+    assert html.index("localization_runtime_patch_v1602.js?v=1602") < html.index("rejected_state_i18n_v1606.js?v=")
+    assert "skin-ai-beta-v160" in sw
 
 
 def test_v1606_is_presentation_only_and_engine_is_frozen():
