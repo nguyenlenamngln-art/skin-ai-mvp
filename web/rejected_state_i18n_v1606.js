@@ -1,7 +1,7 @@
-// V1.6.0.6 — rejected scan localization
+// V1.6.0.7 — rejected scan localization + duplicate banner suppression
 // Presentation only. Keeps API quality codes canonical while rendering friendly VI/EN copy.
 (function(){
-  const VERSION='1.6.0.6'
+  const VERSION='1.6.0.7'
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
   const isVi=()=>locale()==='vi'
   const pick=(en,vi)=>isVi()?vi:en
@@ -71,11 +71,19 @@
     return text
   }
 
+  function handledCaptureRejection(){
+    try{
+      const attempt=(typeof rejectedAttempt!=='undefined')?rejectedAttempt:null
+      return Boolean(attempt&&Number(attempt.status)===422)
+    }catch(_e){return false}
+  }
+
   let lastErrorCanonical=''
   const baseShowError=typeof showError==='function'?showError:null
   if(baseShowError){
     showError=function(msg=''){
       lastErrorCanonical=String(msg||'')
+      if(handledCaptureRejection())return baseShowError('')
       return baseShowError(translateQualityText(lastErrorCanonical))
     }
     window.showError=showError
@@ -138,10 +146,13 @@
   }
 
   function refresh(){
-    if(lastErrorCanonical&&baseShowError)baseShowError(translateQualityText(lastErrorCanonical))
+    if(baseShowError){
+      if(handledCaptureRejection())baseShowError('')
+      else if(lastErrorCanonical)baseShowError(translateQualityText(lastErrorCanonical))
+    }
     try{if(typeof rejectedAttempt!=='undefined'&&rejectedAttempt&&typeof renderRejectedAttempt==='function')renderRejectedAttempt()}catch(_e){}
   }
   window.addEventListener('skin-ai:locale-change',()=>setTimeout(refresh,0))
-  window.skinRejectedI18n={version:VERSION,translateQualityText,flagLabel,refresh}
+  window.skinRejectedI18n={version:VERSION,translateQualityText,flagLabel,handledCaptureRejection,refresh}
   setTimeout(refresh,0)
 })()
