@@ -86,6 +86,7 @@ def install_dermatoscope_registration_v173(product_api) -> None:
                 SELECT * FROM dermatoscope_captures
                 WHERE subject_key=? AND region=? AND subregion=?
                   AND illumination_mode=? AND brightness_level=? AND simulator=?
+                  AND longitudinal_status='accepted'
                 ORDER BY created_at ASC LIMIT 1
                 """,
                 (
