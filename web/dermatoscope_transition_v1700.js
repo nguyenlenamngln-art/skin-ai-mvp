@@ -46,8 +46,8 @@
         result.insertBefore(note,document.querySelector('#resultBody'))
       }
       note.textContent=pick(
-        'Legacy Phone RGB · read only. This historical scan is preserved for reference and is not part of the new dermatoscope measurement series.',
-        'Phone RGB cũ · chỉ xem. Lần quét lịch sử này được giữ lại để tham chiếu và không thuộc chuỗi đo bằng dermatoscope mới.'
+        'Legacy Phone RGB · read only. This historical scan is preserved for reference and is not part of the new close-up measurement series.',
+        'Phone RGB cũ · chỉ xem. Lần quét lịch sử này được giữ lại để tham chiếu và không thuộc chuỗi đo cận cảnh mới.'
       )
     }else if(note){note.remove()}
   }
@@ -115,11 +115,11 @@
   function loadGuidedDermatoscopeCapture(){
     if(!document.querySelector('link[data-derm-v171]')){
       const link=document.createElement('link')
-      link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=171';link.dataset.dermV171='1';document.head.appendChild(link)
+      link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=1711';link.dataset.dermV171='1';document.head.appendChild(link)
     }
     if(!document.querySelector('script[data-derm-v171]')){
       const script=document.createElement('script')
-      script.src='/app/dermatoscope_guided_capture_v171.js?v=171';script.defer=true;script.dataset.dermV171='1';document.body.appendChild(script)
+      script.src='/app/dermatoscope_guided_capture_v171.js?v=1711';script.defer=true;script.dataset.dermV171='1';document.body.appendChild(script)
     }
   }
 
