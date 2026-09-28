@@ -32,10 +32,33 @@ def test_v171_uses_rear_camera_and_is_simulator_until_hardware_validation():
     js = JS.read_text(encoding="utf-8")
     assert "facingMode:{ideal:'environment'}" in js
     assert "form.append('simulator','true')" in js
-    assert "camera sau của điện thoại chỉ được dùng để mô phỏng" in js
+    assert "camera sau chỉ được dùng để kiểm tra quy trình chụp tự động" in js
     api = API.read_text(encoding="utf-8")
     assert '"thresholds_provisional": True' in api
     assert '"validated_for_de500": False' in api
+
+
+def test_v1711_consumer_copy_uses_product_language_and_alias():
+    js = JS.read_text(encoding="utf-8")
+    assert "const VERSION='1.7.1.1'" in js
+    assert "const DEVICE_NAME='SkinScope One'" in js
+    assert "QUÉT DA CHI TIẾT" in js
+    assert "THIẾT LẬP THIẾT BỊ" in js
+    assert "Hướng dẫn bằng giọng nói" in js
+    assert "Ánh sáng" in js
+    assert "DERMATOSCOPE SCAN" not in js
+    assert "QUÉT DERMATOSCOPE" not in js
+    assert "IBOOLO DE-500" not in js
+
+
+def test_v1711_visuals_reuse_existing_app_design_tokens():
+    css = CSS.read_text(encoding="utf-8")
+    for token in ("var(--line)", "var(--ink)", "var(--muted)", "var(--green)", "var(--sage)"):
+        assert token in css
+    for cls in (".dermIntroCard", ".dermRegion", ".dermSetupFooter", ".dermCaptureLayout", ".dermCompleteCard"):
+        assert cls in css
+    assert ".dermRegion.active" in css
+    assert "background:#e8eee6" in css
 
 
 def test_v171_capture_metadata_is_modality_specific_and_not_rgb_analysis():
@@ -57,14 +80,14 @@ def test_v171_api_is_installed_without_changing_frozen_rgb_engine():
     assert '_CAPTURE_PROTOCOL_VERSION = "1.4"' in entry
 
 
-def test_v171_assets_are_loaded_and_cached():
+def test_v1711_assets_are_loaded_and_cached():
     transition = TRANSITION.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
     for asset in (
-        "/app/dermatoscope_guided_capture_v171.css?v=171",
-        "/app/dermatoscope_guided_capture_v171.js?v=171",
+        "/app/dermatoscope_guided_capture_v171.css?v=1711",
+        "/app/dermatoscope_guided_capture_v171.js?v=1711",
     ):
         assert asset in transition
         assert asset in sw
-    assert "skin-ai-beta-v171" in sw
+    assert "skin-ai-beta-v1711" in sw
     assert CSS.exists()
