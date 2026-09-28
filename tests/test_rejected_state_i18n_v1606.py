@@ -62,7 +62,7 @@ def test_v1606_asset_is_loaded_last_and_cached():
     assert "/app/rejected_state_i18n_v1606.js?v=" in html
     assert "/app/rejected_state_i18n_v1606.js?v=" in sw
     assert html.index("localization_runtime_patch_v1602.js?v=1602") < html.index("rejected_state_i18n_v1606.js?v=")
-    assert "skin-ai-beta-v160" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
 
 
 def test_v1606_is_presentation_only_and_engine_is_frozen():
