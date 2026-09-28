@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "web" / "dermatoscope_live_guidance_v174.js"
@@ -44,7 +45,6 @@ def test_v174_match_is_provisional_advisory_and_has_safe_fallbacks():
     assert "Position guidance unavailable" in js
     assert "Capture can continue using the standard image-quality checks." in js
     assert "window.skinDermatoscopeLiveGuidance" in js
-    # V1.7.4 deliberately does not modify the four established auto-capture gates.
     assert "capture(m)" not in js
 
 
@@ -61,4 +61,5 @@ def test_v174_assets_follow_existing_design_tokens_and_are_loaded_cached():
     ):
         assert asset in polish
         assert asset in sw
-    assert "skin-ai-beta-v174" in sw
+    match = re.search(r"skin-ai-beta-v(\d+)", sw)
+    assert match and int(match.group(1)) >= 174

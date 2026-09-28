@@ -29,6 +29,17 @@
     }
   }
 
+  function loadPostCaptureAssets(){
+    if(!document.querySelector('link[href*="dermatoscope_postcapture_v175.css"]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_postcapture_v175.css?v=175';document.head.appendChild(link)
+    }
+    if(!document.querySelector('script[src*="dermatoscope_postcapture_v175.js"]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_postcapture_v175.js?v=175';script.defer=true;document.body.appendChild(script)
+    }
+  }
+
   function apply(){
     if(applying)return
     applying=true
@@ -72,6 +83,7 @@
   function watch(){
     loadHistoryAssets()
     loadLiveGuidanceAssets()
+    loadPostCaptureAssets()
     apply()
     const scan=document.querySelector('#scan')
     if(!scan)return
