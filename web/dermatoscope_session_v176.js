@@ -25,9 +25,8 @@
     let panel=document.querySelector('#dermSessionPanel')
     if(panel)return panel
     panel=document.createElement('div');panel.id='dermSessionPanel';panel.className='dermSessionPanel'
-    panel.innerHTML=`<div><span>${tr('Capture attempts','Số lần chụp')}</span><b id="dermAttemptCount">0 / ${MAX_ATTEMPTS}</b></div><p id="dermSessionHint"></p><div class="dermSessionActions"><button type="button" class="secondaryMini" id="dermSkipPosition">${tr('Skip this position','Bỏ qua vị trí này')}</button></div>`
+    panel.innerHTML=`<div><span>${tr('Capture attempts','Số lần chụp')}</span><b id="dermAttemptCount">0 / ${MAX_ATTEMPTS}</b></div><p id="dermSessionHint"></p>`
     const actions=side.querySelector('.dermActions');if(actions)side.insertBefore(panel,actions);else side.appendChild(panel)
-    panel.querySelector('#dermSkipPosition').onclick=skipCurrent
     return panel
   }
 
@@ -36,10 +35,10 @@
     const count=attempts[p.key]||0
     panel.querySelector('#dermAttemptCount').textContent=`${count} / ${MAX_ATTEMPTS}`
     const hint=panel.querySelector('#dermSessionHint')
-    if(statuses[p.key]==='skipped')hint.textContent=tr('This position was skipped.','Vị trí này đã được bỏ qua.')
-    else if(count>=MAX_ATTEMPTS)hint.textContent=tr('Retry limit reached. You can skip this position and continue.','Đã đạt giới hạn chụp lại. Bạn có thể bỏ qua vị trí này để tiếp tục.')
+    if(statuses[p.key]==='accepted')hint.textContent=tr('Position accepted.','Vị trí đã đạt yêu cầu.')
+    else if(statuses[p.key]==='rejected'&&count>=MAX_ATTEMPTS)hint.textContent=tr('Retry limit reached. This position is marked incomplete and the scan will continue.','Đã đạt giới hạn chụp lại. Vị trí này được đánh dấu chưa hoàn tất và lần quét sẽ tiếp tục.')
+    else if(statuses[p.key]==='rejected')hint.textContent=tr('Position did not match. Reposition and try again.','Vị trí chưa khớp. Hãy điều chỉnh và chụp lại.')
     else hint.textContent=tr(`Up to ${MAX_ATTEMPTS} attempts are allowed for this position.`,`Cho phép tối đa ${MAX_ATTEMPTS} lần chụp cho vị trí này.`)
-    panel.querySelector('#dermSkipPosition').hidden=count<MAX_ATTEMPTS
   }
 
   async function post(url,values){
@@ -59,31 +58,23 @@
     try{session=await post(`/v1/dermatoscope/sessions/${encodeURIComponent(session.id)}/positions`,{region:p.region,subregion:p.subregion,status,attempts:attempts[p.key]||0,capture_id:captureId||''})}catch(_e){}
   }
 
+  function registerRejected(detail){
+    const p=position();if(!p)return true
+    attempts[p.key]=(attempts[p.key]||0)+1
+    statuses[p.key]='rejected'
+    detail.session_attempt_count=attempts[p.key]
+    detail.session_retry_limit=MAX_ATTEMPTS
+    detail.session_retry_allowed=attempts[p.key]<MAX_ATTEMPTS
+    updatePosition(p,'rejected',detail?.capture_id)
+    render()
+    return detail.session_retry_allowed
+  }
+
   async function onAccepted(event){
     const p=position();if(!p)return
     attempts[p.key]=(attempts[p.key]||0)+1
     await updatePosition(p,'accepted',event.detail?.capture_id)
     render()
-  }
-
-  async function onRejected(event){
-    const p=position();if(!p)return
-    attempts[p.key]=(attempts[p.key]||0)+1
-    statuses[p.key]='rejected'
-    await updatePosition(p,'rejected',event.detail?.capture_id)
-    render()
-    if(attempts[p.key]>=MAX_ATTEMPTS){
-      const status=document.querySelector('#dermStatus');if(status)status.textContent=tr('Retry limit reached. Skip this position or adjust and try once more after restarting the area.','Đã đạt giới hạn chụp lại. Hãy bỏ qua vị trí này hoặc điều chỉnh và bắt đầu lại vùng này.')
-    }
-  }
-
-  async function skipCurrent(){
-    const p=position();if(!p)return
-    await updatePosition(p,'skipped',null)
-    statuses[p.key]='skipped';render()
-    const retake=document.querySelector('#dermRetakePanel');if(retake)retake.hidden=true
-    const status=document.querySelector('#dermStatus');if(status)status.textContent=tr('Position skipped. Continue with the next position.','Đã bỏ qua vị trí này. Tiếp tục với vị trí tiếp theo.')
-    window.dispatchEvent(new CustomEvent('skin-ai:dermatoscope-position-skipped',{detail:p}))
   }
 
   async function finishSession(finalStatus){
@@ -99,10 +90,10 @@
       if(event.target.closest?.('#dermAgain'))finishSession('complete')
     })
     window.addEventListener('skin-ai:dermatoscope-position-accepted',onAccepted)
-    window.addEventListener('skin-ai:dermatoscope-retake-required',onRejected)
+    window.addEventListener('skin-ai:dermatoscope-retake-required',()=>setTimeout(render,0))
     const observer=new MutationObserver(()=>{
       const complete=document.querySelector('#dermComplete')
-      if(complete&&!complete.hidden)finishSession(Object.values(statuses).some(s=>s==='skipped'||s==='rejected')?'incomplete':'complete')
+      if(complete&&!complete.hidden)finishSession(Object.values(statuses).some(s=>s==='rejected'||s==='skipped'||s==='incomplete')?'incomplete':'complete')
       render()
     })
     const scan=document.querySelector('#scan');if(scan)observer.observe(scan,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','class']})
@@ -110,5 +101,5 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()
-  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
+  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,registerRejected,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
 })()
