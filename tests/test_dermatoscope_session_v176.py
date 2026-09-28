@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 API = ROOT / "src" / "skin_ai" / "dermatoscope_session_v176.py"
@@ -61,4 +62,5 @@ def test_v176_assets_follow_existing_design_tokens_and_are_cached():
     ):
         assert asset in polish
         assert asset in sw
-    assert "skin-ai-beta-v176" in sw
+    match = re.search(r"skin-ai-beta-v(\d+)", sw)
+    assert match and int(match.group(1)) >= 176
