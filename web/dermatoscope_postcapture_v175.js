@@ -32,17 +32,25 @@
   function showRetake(detail){
     const panel=ensureRetakePanel();if(!panel)return
     const score=Number.isFinite(Number(detail?.score))?Math.round(Number(detail.score)):null
+    const limitReached=detail?.session_retry_allowed===false
     panel.hidden=false
-    panel.dataset.state='required'
-    panel.querySelector('#dermRetakeTitle').textContent=tr('Retake this position','Chụp lại vị trí này')
-    panel.querySelector('#dermRetakeCopy').textContent=score===null
-      ?tr('The captured image did not match the saved skin position closely enough. Reposition and hold still for another automatic capture.','Ảnh vừa chụp chưa khớp đủ gần với vị trí da đã lưu. Hãy đưa máy về đúng vị trí hơn và giữ yên để chụp lại tự động.')
-      :tr(`Position match was ${score}%. Reposition and hold still for another automatic capture.`,`Mức khớp vị trí là ${score}%. Hãy điều chỉnh lại vị trí và giữ yên để chụp lại tự động.`)
+    panel.dataset.state=limitReached?'limit':'required'
+    panel.querySelector('#dermRetakeTitle').textContent=limitReached
+      ?tr('Retry limit reached','Đã đạt giới hạn chụp lại')
+      :tr('Retake this position','Chụp lại vị trí này')
+    panel.querySelector('#dermRetakeCopy').textContent=limitReached
+      ?tr('This position is marked incomplete and the scan will continue to the next position.','Vị trí này được đánh dấu chưa hoàn tất và lần quét sẽ tiếp tục sang vị trí tiếp theo.')
+      :(score===null
+        ?tr('The captured image did not match the saved skin position closely enough. Reposition and hold still for another automatic capture.','Ảnh vừa chụp chưa khớp đủ gần với vị trí da đã lưu. Hãy đưa máy về đúng vị trí hơn và giữ yên để chụp lại tự động.')
+        :tr(`Position match was ${score}%. Reposition and hold still for another automatic capture.`,`Mức khớp vị trí là ${score}%. Hãy điều chỉnh lại vị trí và giữ yên để chụp lại tự động.`))
     const status=document.querySelector('#dermStatus')
-    if(status)status.textContent=tr('Retake required — return to the saved position.','Cần chụp lại — hãy trở về vị trí đã lưu.')
+    if(status)status.textContent=limitReached
+      ?tr('Retry limit reached — continuing with this position marked incomplete.','Đã đạt giới hạn chụp lại — tiếp tục với vị trí này được đánh dấu chưa hoàn tất.')
+      :tr('Retake required — return to the saved position.','Cần chụp lại — hãy trở về vị trí đã lưu.')
     const bar=document.querySelector('#dermHoldBar');if(bar)bar.style.width='0%'
     try{window.skinDermatoscopeLiveGuidance?.reset?.();window.skinDermatoscopeLiveGuidance?.sample?.()}catch(_e){}
-    speak('Please retake this position. Move back toward the saved skin area.','Vui lòng chụp lại vị trí này. Hãy di chuyển về gần vùng da đã lưu.')
+    if(limitReached)speak('Retry limit reached. Continuing to the next position.','Đã đạt giới hạn chụp lại. Tiếp tục sang vị trí tiếp theo.')
+    else speak('Please retake this position. Move back toward the saved skin area.','Vui lòng chụp lại vị trí này. Hãy di chuyển về gần vùng da đã lưu.')
   }
 
   function clearRetake(){
@@ -77,8 +85,12 @@
         return response
       }
       if(validation?.retake_required){
+        const retryAllowed=window.skinDermatoscopeSession?.registerRejected?.(validation)
         window.dispatchEvent(new CustomEvent('skin-ai:dermatoscope-retake-required',{detail:validation}))
-        throw new Error('dermatoscope_position_retake_required')
+        if(retryAllowed!==false)throw new Error('dermatoscope_position_retake_required')
+        // At the retry cap the rejected image remains auditable, the position stays
+        // rejected/incomplete in session state, and the existing capture flow advances.
+        return response
       }
       clearRetake()
       window.dispatchEvent(new CustomEvent('skin-ai:dermatoscope-position-accepted',{detail:validation}))
