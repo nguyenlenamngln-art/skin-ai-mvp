@@ -8,13 +8,13 @@
   let applying=false
 
   function loadHistoryAssets(){
-    if(!document.querySelector('link[data-derm-history-v172]')){
+    if(!document.querySelector('link[href*="dermatoscope_history_v172.css"]')){
       const link=document.createElement('link')
-      link.rel='stylesheet';link.href='/app/dermatoscope_history_v172.css?v=172';link.dataset.dermHistoryV172='1';document.head.appendChild(link)
+      link.rel='stylesheet';link.href='/app/dermatoscope_history_v172.css?v=172';document.head.appendChild(link)
     }
-    if(!document.querySelector('script[data-derm-history-v172]')){
+    if(!document.querySelector('script[src*="dermatoscope_history_v172.js"]')){
       const script=document.createElement('script')
-      script.src='/app/dermatoscope_history_v172.js?v=172';script.defer=true;script.dataset.dermHistoryV172='1';document.body.appendChild(script)
+      script.src='/app/dermatoscope_history_v172.js?v=172';script.defer=true;document.body.appendChild(script)
     }
   }
 
