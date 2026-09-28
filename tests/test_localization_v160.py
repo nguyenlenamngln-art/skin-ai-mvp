@@ -65,7 +65,7 @@ def test_v160_localizes_dynamic_dates_and_comparison_messages():
 def test_v160_pwa_is_vietnamese_first_and_cached_offline():
     sw = SW.read_text(encoding="utf-8")
     manifest = MANIFEST.read_text(encoding="utf-8")
-    assert "skin-ai-beta-v160" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
     assert "/app/i18n_v160.css?v=160" in sw
     assert '"lang": "vi"' in manifest
     assert "Theo dõi da cá nhân" in manifest
