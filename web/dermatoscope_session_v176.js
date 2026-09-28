@@ -12,11 +12,12 @@
 
   function root(){return document.querySelector('#dermV171')}
   function activeRegion(){return root()?.querySelector('.dermRegion.active')?.dataset.dermRegion||region}
+  function activeShots(r){return window.skinDermatoscopeCapture?.regions?.[r]?.shots||SHOTS[r]||[]}
   function position(){
     const r=activeRegion();if(!r)return null
     const counter=root()?.querySelector('#dermCounter')?.textContent||'1 / 1'
     const index=Math.max(0,(parseInt(counter.split('/')[0])||1)-1)
-    const sub=(SHOTS[r]||[])[index]
+    const sub=activeShots(r)[index]
     return sub?{region:r,subregion:sub,key:`${r}/${sub}`} : null
   }
 
@@ -64,11 +65,7 @@
     render()
   }
 
-  async function adoptSession(nextSession){
-    hydrate(nextSession)
-    render()
-    return session
-  }
+  async function adoptSession(nextSession){hydrate(nextSession);render();return session}
 
   async function updatePosition(p,status,captureId){
     statuses[p.key]=status
