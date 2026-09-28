@@ -1,0 +1,32 @@
+/* V1.7.1.1 — close-up scan visual-system polish */
+.dermV171{max-width:100%}
+.dermV171 .card{border-radius:20px;border:1px solid var(--line);background:#fffdfa;box-shadow:none}
+.dermIntroCard,.dermSetupCard,.dermCaptureCard,.dermCompleteCard{padding:24px;margin-bottom:20px}
+.dermIntroHead{grid-template-columns:40px minmax(0,1fr);gap:14px;align-items:start}
+.dermIntroHead .bubble,.dermDeviceMark,.dermCompleteBadge{background:var(--sage);color:var(--green);border-radius:12px}
+.dermIntroCard h2,.dermSetupCard h3,.dermCaptureCard h3,.dermCompleteCard h3{letter-spacing:-.025em;color:var(--ink)}
+.dermIntroCard h2{font-size:25px;line-height:1.15;margin:4px 0 0}
+.dermNotice{font-size:13px;line-height:1.55;color:var(--muted);margin-top:8px}
+.dermRegionGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px}
+.dermRegion{min-height:82px;padding:16px 17px;border-radius:16px;border:1px solid var(--line);background:#faf9f5;color:var(--ink);box-shadow:none}
+.dermRegion:hover{background:#f5f6f1;border-color:#c8d0c6}
+.dermRegion.active{background:#edf2eb;border-color:#9faf9f;box-shadow:0 0 0 3px rgba(49,77,62,.06)}
+.dermRegion strong{font-size:14px;line-height:1.2}.dermRegion small{font-size:11px;margin-top:5px;color:var(--muted)}
+.dermRegionCheck{width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid var(--line)}
+.dermRegion.active .dermRegionCheck{background:var(--green);border-color:var(--green);color:#fff}
+.dermSetupCard{background:#fffdfa}
+.dermSetupHeader{align-items:flex-start}.dermDeviceRow{margin-top:10px}.dermDeviceRow h3{font-size:21px}.dermDeviceRow p{font-size:12px}
+.dermRegionBadge{background:#eef3ec;border-color:#d8e1d6;color:#45604e;padding:8px 11px}
+.dermSetupGrid{gap:12px;margin-top:20px}.dermSetupBox{padding:15px 16px;border-radius:14px;background:#f7f8f4}.dermSetupBox span{font-size:11px}.dermSetupBox b{font-size:15px;margin-top:5px}
+.dermSetupFooter{margin-top:18px;padding-top:18px}.dermAudioOption{font-size:13px;gap:10px}.dermAudioOption input{width:18px;height:18px}
+.dermSetupFooter .primary,.dermActions .primary{background:var(--green);color:white;border:none;border-radius:12px;min-height:44px;padding:0 20px;font-weight:700}
+.dermSetupFooter .primary{min-width:240px}
+.dermShotHeader{margin-bottom:18px}.dermShotHeader h3{font-size:22px}.dermShotHeader>strong{background:#eef3ec;border-color:#d8e1d6;color:#45604e}
+.dermCaptureLayout{gap:20px}.dermCameraStage{border-radius:18px}.dermCaptureSide{border-radius:16px;background:#f8f8f4;padding:16px}
+.dermChecks{gap:10px}.dermCheck{border-radius:12px;padding:12px 13px;background:#fff}.dermCheck span{font-size:11px}.dermCheck b{font-size:14px}
+.dermProgress{margin-top:16px}.dermStatus{font-size:13px}.dermCaptureHint{font-size:12px;border-radius:12px;background:#f3f4ef}
+.dermActions .secondaryMini{border:1px solid var(--line);background:white;color:var(--green);border-radius:12px;min-height:42px;padding:0 16px;font-weight:700}
+.dermCapturedGrid{gap:12px}.dermCapturedGrid img{border-radius:14px}
+@media(max-width:1000px){.dermRegionGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.dermCaptureLayout{grid-template-columns:1fr}}
+@media(max-width:650px){.dermIntroCard,.dermSetupCard,.dermCaptureCard,.dermCompleteCard{padding:18px;border-radius:18px}.dermIntroHead{grid-template-columns:36px minmax(0,1fr);gap:12px}.dermIntroHead .bubble{width:36px;height:36px}.dermIntroCard h2{font-size:22px}.dermRegionGrid{grid-template-columns:1fr 1fr;gap:10px}.dermRegion{min-height:76px;padding:14px}.dermSetupHeader,.dermSetupFooter,.dermCompleteHead{flex-direction:column}.dermSetupGrid{grid-template-columns:1fr 1fr}.dermSetupFooter .primary{width:100%;min-width:0}.dermCapturedGrid{grid-template-columns:repeat(3,1fr)}.dermCaptureSide{padding:12px}}
+@media(max-width:390px){.dermRegionGrid{grid-template-columns:1fr}.dermSetupGrid,.dermChecks{grid-template-columns:1fr 1fr}}

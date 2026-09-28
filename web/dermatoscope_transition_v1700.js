@@ -117,9 +117,17 @@
       const link=document.createElement('link')
       link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=1711';link.dataset.dermV171='1';document.head.appendChild(link)
     }
+    if(!document.querySelector('link[data-derm-polish-v1711]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_ui_polish_v1711.css?v=1711';link.dataset.dermPolishV1711='1';document.head.appendChild(link)
+    }
     if(!document.querySelector('script[data-derm-v171]')){
       const script=document.createElement('script')
       script.src='/app/dermatoscope_guided_capture_v171.js?v=1711';script.defer=true;script.dataset.dermV171='1';document.body.appendChild(script)
+    }
+    if(!document.querySelector('script[data-derm-polish-v1711]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_ui_polish_v1711.js?v=1711';script.defer=true;script.dataset.dermPolishV1711='1';document.body.appendChild(script)
     }
   }
 
