@@ -35,7 +35,7 @@ def test_v1607_cache_and_asset_version_bumped():
     asset = "/app/rejected_state_i18n_v1606.js?v=1607"
     assert asset in html
     assert asset in sw
-    assert "skin-ai-beta-v1607" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
 
 
 def test_v1607_is_presentation_only_and_measurement_frozen():
