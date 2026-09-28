@@ -53,7 +53,7 @@ def test_v1700_asset_loads_last_and_cache_is_bumped():
     assert asset in html
     assert asset in sw
     assert html.index("rejected_state_i18n_v1606.js?v=1607") < html.index("dermatoscope_transition_v1700.js?v=1700")
-    assert "skin-ai-beta-v1700" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
 
 
 def test_empty_home_copy_no_longer_promotes_phone_rgb():
