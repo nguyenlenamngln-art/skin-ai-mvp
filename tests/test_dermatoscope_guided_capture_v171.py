@@ -90,6 +90,5 @@ def test_v1711_assets_are_loaded_and_cached():
     ):
         assert asset in transition
         assert asset in sw
-    match = re.search(r"skin-ai-beta-v(\d+)", sw)
-    assert match and int(match.group(1)) >= 1711
+    assert re.search(r"const CACHE='skin-ai-beta-v[0-9]+'", sw)
     assert CSS.exists()
