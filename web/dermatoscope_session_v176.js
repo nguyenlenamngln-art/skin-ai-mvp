@@ -20,6 +20,18 @@
     return sub?{region:r,subregion:sub,key:`${r}/${sub}`} : null
   }
 
+  function hydrate(nextSession){
+    session=nextSession||null
+    attempts={};statuses={}
+    if(!session)return
+    region=session.region||region
+    Object.entries(session.positions||{}).forEach(([key,item])=>{
+      attempts[key]=Number(item?.attempts||0)
+      statuses[key]=item?.status||'incomplete'
+    })
+    if(session.id)document.documentElement.dataset.dermatoscopeSessionId=session.id
+  }
+
   function ensurePanel(){
     const side=root()?.querySelector('.dermCaptureSide');if(!side)return null
     let panel=document.querySelector('#dermSessionPanel')
@@ -48,8 +60,14 @@
 
   async function createSession(r){
     region=r;attempts={};statuses={};session=null
-    try{session=await post('/v1/dermatoscope/sessions',{region:r,simulator:true,subject_key:'my_profile'});document.documentElement.dataset.dermatoscopeSessionId=session.id}catch(_e){}
+    try{hydrate(await post('/v1/dermatoscope/sessions',{region:r,simulator:true,subject_key:'my_profile'}))}catch(_e){}
     render()
+  }
+
+  async function adoptSession(nextSession){
+    hydrate(nextSession)
+    render()
+    return session
   }
 
   async function updatePosition(p,status,captureId){
@@ -85,7 +103,7 @@
   function install(){
     document.addEventListener('click',event=>{
       const regionButton=event.target.closest?.('[data-derm-region]')
-      if(regionButton)setTimeout(()=>createSession(regionButton.dataset.dermRegion),0)
+      if(regionButton&&!document.documentElement.dataset.dermatoscopeResumeAdopting)setTimeout(()=>createSession(regionButton.dataset.dermRegion),0)
       if(event.target.closest?.('#dermCancel'))finishSession('cancelled')
       if(event.target.closest?.('#dermAgain'))finishSession('complete')
     })
@@ -101,5 +119,5 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()
-  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,registerRejected,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
+  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,registerRejected,adoptSession,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
 })()
