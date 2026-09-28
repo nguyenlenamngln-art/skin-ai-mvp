@@ -182,8 +182,10 @@ product_api.resolve_tracking = _resolve_tracking_v14
 from skin_ai.study_access_v157 import install_v157  # noqa: E402
 from skin_ai.study_views_v157 import install_study_views_v157  # noqa: E402
 from skin_ai.dermatoscope_capture_v171 import install_dermatoscope_capture_v171  # noqa: E402
+from skin_ai.dermatoscope_history_v172 import install_dermatoscope_history_v172  # noqa: E402
 
 install_v157(product_api)
 install_study_views_v157(product_api)
 install_dermatoscope_capture_v171(product_api)
+install_dermatoscope_history_v172(product_api)
 app = product_api.app
