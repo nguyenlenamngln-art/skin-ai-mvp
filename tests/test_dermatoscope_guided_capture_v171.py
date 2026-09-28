@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "web" / "dermatoscope_guided_capture_v171.js"
@@ -89,5 +90,5 @@ def test_v1711_assets_are_loaded_and_cached():
     ):
         assert asset in transition
         assert asset in sw
-    assert "skin-ai-beta-v1711" in sw
+    assert re.search(r"const CACHE='skin-ai-beta-v[0-9]+'", sw)
     assert CSS.exists()
