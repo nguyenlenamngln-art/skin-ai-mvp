@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from skin_ai.dermatoscope_registration_v173 import _register
+from skin_ai.dermatoscope_session_v176 import install_dermatoscope_session_v176
 
 VERSION = "1.7.5"
 DEFAULT_SUBJECT_KEY = "my_profile"
@@ -11,6 +12,8 @@ REJECTED_STATUS = "rejected_position"
 
 
 def install_dermatoscope_retake_v175(product_api) -> None:
+    install_dermatoscope_session_v176(product_api)
+
     with product_api.store.connect() as con:
         cols = {r[1] for r in con.execute("PRAGMA table_info(dermatoscope_captures)").fetchall()}
         if "longitudinal_status" not in cols:
