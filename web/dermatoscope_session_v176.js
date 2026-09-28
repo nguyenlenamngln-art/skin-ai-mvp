@@ -12,12 +12,25 @@
 
   function root(){return document.querySelector('#dermV171')}
   function activeRegion(){return root()?.querySelector('.dermRegion.active')?.dataset.dermRegion||region}
+  function activeShots(r){return window.skinDermatoscopeCapture?.regions?.[r]?.shots||SHOTS[r]||[]}
   function position(){
     const r=activeRegion();if(!r)return null
     const counter=root()?.querySelector('#dermCounter')?.textContent||'1 / 1'
     const index=Math.max(0,(parseInt(counter.split('/')[0])||1)-1)
-    const sub=(SHOTS[r]||[])[index]
+    const sub=activeShots(r)[index]
     return sub?{region:r,subregion:sub,key:`${r}/${sub}`} : null
+  }
+
+  function hydrate(nextSession){
+    session=nextSession||null
+    attempts={};statuses={}
+    if(!session)return
+    region=session.region||region
+    Object.entries(session.positions||{}).forEach(([key,item])=>{
+      attempts[key]=Number(item?.attempts||0)
+      statuses[key]=item?.status||'incomplete'
+    })
+    if(session.id)document.documentElement.dataset.dermatoscopeSessionId=session.id
   }
 
   function ensurePanel(){
@@ -48,9 +61,11 @@
 
   async function createSession(r){
     region=r;attempts={};statuses={};session=null
-    try{session=await post('/v1/dermatoscope/sessions',{region:r,simulator:true,subject_key:'my_profile'});document.documentElement.dataset.dermatoscopeSessionId=session.id}catch(_e){}
+    try{hydrate(await post('/v1/dermatoscope/sessions',{region:r,simulator:true,subject_key:'my_profile'}))}catch(_e){}
     render()
   }
+
+  async function adoptSession(nextSession){hydrate(nextSession);render();return session}
 
   async function updatePosition(p,status,captureId){
     statuses[p.key]=status
@@ -85,7 +100,7 @@
   function install(){
     document.addEventListener('click',event=>{
       const regionButton=event.target.closest?.('[data-derm-region]')
-      if(regionButton)setTimeout(()=>createSession(regionButton.dataset.dermRegion),0)
+      if(regionButton&&!document.documentElement.dataset.dermatoscopeResumeAdopting)setTimeout(()=>createSession(regionButton.dataset.dermRegion),0)
       if(event.target.closest?.('#dermCancel'))finishSession('cancelled')
       if(event.target.closest?.('#dermAgain'))finishSession('complete')
     })
@@ -101,5 +116,5 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install()
-  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,registerRejected,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
+  window.skinDermatoscopeSession={version:VERSION,maxAttempts:MAX_ATTEMPTS,registerRejected,adoptSession,state:()=>({session,region,attempts:{...attempts},statuses:{...statuses}})}
 })()
