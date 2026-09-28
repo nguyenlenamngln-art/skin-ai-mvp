@@ -40,6 +40,17 @@
     }
   }
 
+  function loadSessionAssets(){
+    if(!document.querySelector('link[href*="dermatoscope_session_v176.css"]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_session_v176.css?v=176';document.head.appendChild(link)
+    }
+    if(!document.querySelector('script[src*="dermatoscope_session_v176.js"]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_session_v176.js?v=176';script.defer=true;document.body.appendChild(script)
+    }
+  }
+
   function apply(){
     if(applying)return
     applying=true
@@ -84,6 +95,7 @@
     loadHistoryAssets()
     loadLiveGuidanceAssets()
     loadPostCaptureAssets()
+    loadSessionAssets()
     apply()
     const scan=document.querySelector('#scan')
     if(!scan)return
