@@ -18,6 +18,17 @@
     }
   }
 
+  function loadLiveGuidanceAssets(){
+    if(!document.querySelector('link[href*="dermatoscope_live_guidance_v174.css"]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_live_guidance_v174.css?v=174';document.head.appendChild(link)
+    }
+    if(!document.querySelector('script[src*="dermatoscope_live_guidance_v174.js"]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_live_guidance_v174.js?v=174';script.defer=true;document.body.appendChild(script)
+    }
+  }
+
   function apply(){
     if(applying)return
     applying=true
@@ -43,9 +54,9 @@
         const eyebrow=setup.querySelector('.eyebrow')
         const name=setup.querySelector('.dermDeviceRow h3')
         const desc=setup.querySelector('.dermDeviceRow p')
-        setText(eyebrow,pick('PREPARE SKIN SCOPE','CHUẨN BỊ MÁY SOI'))
-        setText(name,'Skin AI Scope')
-        setText(desc,pick('Standard setup for this scan','Cấu hình chuẩn cho lần quét này'))
+        if(eyebrow)eyebrow.textContent=pick('PREPARE SKIN SCOPE','CHUẨN BỊ MÁY SOI')
+        if(name)name.textContent='Skin AI Scope'
+        if(desc)desc.textContent=pick('Standard setup for this scan','Cấu hình chuẩn cho lần quét này')
       }
 
       root.querySelectorAll('.dermRegion').forEach(button=>{
@@ -60,6 +71,7 @@
 
   function watch(){
     loadHistoryAssets()
+    loadLiveGuidanceAssets()
     apply()
     const scan=document.querySelector('#scan')
     if(!scan)return
