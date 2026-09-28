@@ -7,6 +7,17 @@
   const setAttr=(el,name,value)=>{if(el && el.getAttribute(name)!==value) el.setAttribute(name,value)}
   let applying=false
 
+  function loadHistoryAssets(){
+    if(!document.querySelector('link[data-derm-history-v172]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_history_v172.css?v=172';link.dataset.dermHistoryV172='1';document.head.appendChild(link)
+    }
+    if(!document.querySelector('script[data-derm-history-v172]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_history_v172.js?v=172';script.defer=true;script.dataset.dermHistoryV172='1';document.body.appendChild(script)
+    }
+  }
+
   function apply(){
     if(applying)return
     applying=true
@@ -48,6 +59,7 @@
   }
 
   function watch(){
+    loadHistoryAssets()
     apply()
     const scan=document.querySelector('#scan')
     if(!scan)return
