@@ -21,6 +21,7 @@ def _row_payload(row) -> dict[str, Any]:
         "quality": json.loads(row["quality_json"]),
         "client": json.loads(row["client_json"]),
         "media": {"original": f"/media/dermatoscope/{row['id']}/original.jpg"},
+        "longitudinal_status": row["longitudinal_status"] if "longitudinal_status" in row.keys() else "accepted",
     }
 
 
@@ -44,7 +45,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
         limit: int = 100,
     ):
         limit = min(max(limit, 1), 500)
-        where = ["subject_key = ?"]
+        where = ["subject_key = ?", "longitudinal_status = 'accepted'"]
         args: list[Any] = [subject_key]
         if region:
             where.append("region = ?")
@@ -78,6 +79,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
                 SELECT * FROM dermatoscope_captures
                 WHERE subject_key=? AND region=? AND subregion=?
                   AND illumination_mode=? AND brightness_level=? AND simulator=?
+                  AND longitudinal_status='accepted'
                 ORDER BY created_at ASC
                 LIMIT 1
                 """,
@@ -92,6 +94,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
                 SELECT COUNT(*) FROM dermatoscope_captures
                 WHERE subject_key=? AND region=? AND subregion=?
                   AND illumination_mode=? AND brightness_level=? AND simulator=?
+                  AND longitudinal_status='accepted'
                 """,
                 (subject_key, region, subregion, illumination_mode, brightness_level, 1 if simulator else 0),
             ).fetchone()[0]
@@ -99,7 +102,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
             "baseline": _row_payload(row),
             "position_key": position_key,
             "capture_count": int(count),
-            "baseline_rule": "first_capture",
+            "baseline_rule": "first_accepted_capture",
             "simulator": simulator,
         }
 
@@ -113,7 +116,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
                        MIN(created_at) AS first_capture_at,
                        MAX(created_at) AS latest_capture_at
                 FROM dermatoscope_captures
-                WHERE subject_key=?
+                WHERE subject_key=? AND longitudinal_status='accepted'
                 GROUP BY region, subregion, illumination_mode, brightness_level, simulator
                 ORDER BY latest_capture_at DESC
                 """,
@@ -130,7 +133,7 @@ def install_dermatoscope_history_v172(product_api) -> None:
                 "first_capture_at": r["first_capture_at"],
                 "latest_capture_at": r["latest_capture_at"],
                 "has_baseline": int(r["capture_count"]) > 0,
-                "baseline_rule": "first_capture",
+                "baseline_rule": "first_accepted_capture",
                 "position_key": f"{r['region']}/{r['subregion']}",
             }
             for r in rows
