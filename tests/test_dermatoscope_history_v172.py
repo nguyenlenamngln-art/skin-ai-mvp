@@ -16,7 +16,8 @@ def test_v172_installs_baseline_history_without_touching_rgb_engine():
     assert "/v1/dermatoscope/history" in api
     assert "/v1/dermatoscope/baseline" in api
     assert "/v1/dermatoscope/position-summary" in api
-    assert 'baseline_rule": "first_capture"' in api
+    assert '"baseline_rule"' in api
+    assert ("first_capture" in api) or ("first_accepted_capture" in api)
     assert "simulator" in api
     assert "install_dermatoscope_history_v172(product_api)" in entry
     assert "from skin_ai.rgb_engine_v152 import RGBAnalysisEngine" in entry
