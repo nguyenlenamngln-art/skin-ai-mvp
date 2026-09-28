@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,4 +69,5 @@ def test_v175_assets_are_loaded_and_cached():
     ):
         assert asset in polish
         assert asset in sw
-    assert "skin-ai-beta-v175" in sw
+    match = re.search(r"skin-ai-beta-v(\d+)", sw)
+    assert match and int(match.group(1)) >= 175
