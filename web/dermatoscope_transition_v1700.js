@@ -112,7 +112,19 @@
     document.documentElement.dataset.researchCaptureMode=researchMode?'true':'false'
   }
 
+  function loadGuidedDermatoscopeCapture(){
+    if(!document.querySelector('link[data-derm-v171]')){
+      const link=document.createElement('link')
+      link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=171';link.dataset.dermV171='1';document.head.appendChild(link)
+    }
+    if(!document.querySelector('script[data-derm-v171]')){
+      const script=document.createElement('script')
+      script.src='/app/dermatoscope_guided_capture_v171.js?v=171';script.defer=true;script.dataset.dermV171='1';document.body.appendChild(script)
+    }
+  }
+
   window.addEventListener('skin-ai:locale-change',()=>setTimeout(refreshTransition,0))
   window.skinDermatoscopeTransition={version:VERSION,researchMode,refresh:refreshTransition}
   setTimeout(refreshTransition,0)
+  loadGuidedDermatoscopeCapture()
 })()
