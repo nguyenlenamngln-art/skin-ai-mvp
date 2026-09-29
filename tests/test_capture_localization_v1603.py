@@ -50,8 +50,10 @@ def test_v1603_localizes_dynamic_capture_result_date_and_quality_value():
     assert "Intl.DateTimeFormat(vi?'vi-VN':'en-US'" in js
     assert "hour12:!vi" in js
     assert ".testerQualityScore strong" in js
-    assert "el.textContent='Tốt'" in js
-    assert "el.textContent='Good'" in js
+    # Later runtime patches may use guarded setters to avoid MutationObserver loops.
+    assert "'Tốt'" in js
+    assert "'Good'" in js
+    assert "setText(el" in js or "el.textContent=" in js
 
 
 def test_v1603_remains_reversible_and_observes_runtime_updates():
