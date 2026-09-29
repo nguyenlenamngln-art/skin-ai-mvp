@@ -8,7 +8,7 @@ SW = ROOT / "web" / "sw.js"
 
 def test_session_render_writes_are_guarded():
     js = SESSION.read_text(encoding="utf-8")
-    assert "function setText" in js
+    assert "const setText=" in js
     assert "if(el&&el.textContent!==value)" in js
     assert "setText(panel.querySelector('#dermAttemptCount')" in js
     assert "setText(hint" in js
