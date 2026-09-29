@@ -72,3 +72,8 @@ def install_dermatoscope_resume_v177(product_api) -> None:
             "next_unresolved": next_unresolved,
             "version": VERSION,
         }
+
+    # V1.7.8 is installed after session/recovery so analysis can rely on accepted
+    # longitudinal status and identical-position metadata without touching RGB V1.5.2.
+    from skin_ai.dermatoscope_analysis_v178 import install_dermatoscope_analysis_v178
+    install_dermatoscope_analysis_v178(product_api)
