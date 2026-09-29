@@ -24,14 +24,11 @@ def _largest_component(mask: np.ndarray) -> np.ndarray:
 def _optical_field(rgb: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
     h, w = rgb.shape[:2]
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    # Bright-content component works for circular/vignetted scope images, while
-    # the ellipse fallback keeps simulator/ordinary camera images usable.
     candidate = _largest_component(gray > 12)
     coverage = float(candidate.mean())
     if 0.45 <= coverage <= 0.98:
         mask = candidate.astype(np.uint8)
-        kernel = np.ones((9, 9), np.uint8)
-        mask = cv2.erode(mask, kernel, iterations=1).astype(bool)
+        mask = cv2.erode(mask, np.ones((9, 9), np.uint8), iterations=1).astype(bool)
         method = "largest_nonblack_component"
     else:
         mask = np.zeros((h, w), np.uint8)
@@ -43,67 +40,89 @@ def _optical_field(rgb: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
 
 def _glare_mask(rgb: np.ndarray, field: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
-    bright = hsv[..., 2] >= 245
-    low_sat = hsv[..., 1] <= 70
-    mask = bright & low_sat & field
-    mask = cv2.dilate(mask.astype(np.uint8), np.ones((5, 5), np.uint8), iterations=1)
-    return mask.astype(bool)
+    mask = (hsv[..., 2] >= 245) & (hsv[..., 1] <= 70) & field
+    return cv2.dilate(mask.astype(np.uint8), np.ones((5, 5), np.uint8), iterations=1).astype(bool)
 
 
 def _hair_mask(rgb: np.ndarray, field: np.ndarray) -> np.ndarray:
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    # Dark thin structures are highlighted by a black-hat transform. This is a
-    # provisional artifact detector, not an ML hair segmentation model.
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))
     blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
     mask = (blackhat >= 18) & field
     mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
-    mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
-    return mask.astype(bool)
+    return cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1).astype(bool)
 
 
 def _ruler_mask(rgb: np.ndarray, field: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
     h, w = rgb.shape[:2]
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-    lower = np.zeros((h, w), bool)
-    lower[int(h * .55):] = True
-    dark = (gray < 75) & field & lower
-    # Connect repeated tick marks/text into a band. Require a plausible wide,
-    # shallow component before calling it a ruler.
-    connected = cv2.morphologyEx(dark.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 17), np.uint8))
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(connected, 8)
-    best = None
-    for i in range(1, n):
-        x, y, ww, hh, area = stats[i]
-        if ww >= int(w * .28) and hh <= int(h * .18) and area >= max(20, int(w * h * .0008)):
-            score = ww / max(hh, 1)
-            if best is None or score > best[0]:
-                best = (score, i, x, y, ww, hh)
-    mask = np.zeros((h, w), np.uint8)
-    if best is None:
-        return mask.astype(bool), {"detected": False, "pixels_per_mm": None, "confidence": 0.0, "provisional": True}
-    _, idx, x, y, ww, hh = best
-    component = labels == idx
-    mask[component] = 1
-    mask = cv2.dilate(mask, np.ones((7, 7), np.uint8), iterations=1)
+    dark = (gray < 75) & field
+    dark[: int(h * .55)] = False
 
-    # Estimate spacing between vertical dark tick clusters by projection. The
-    # value is explicitly provisional until DE-500 scale geometry is validated.
-    roi = dark[y:y + hh, x:x + ww]
-    projection = roi.sum(axis=0).astype(np.float32)
-    threshold = max(2.0, float(np.percentile(projection, 82)))
+    # Detect a horizontal ruler band from row density before connected-component
+    # analysis. This avoids a crossing hair merging with the ruler and making
+    # the candidate look too tall.
+    row_counts = dark.sum(axis=1).astype(np.float32)
+    if float(row_counts.max(initial=0)) < max(5.0, w * .05):
+        return np.zeros((h, w), bool), {
+            "detected": False,
+            "pixels_per_mm": None,
+            "confidence": 0.0,
+            "provisional": True,
+        }
+    row_threshold = max(4.0, float(np.percentile(row_counts[row_counts > 0], 72)))
+    rows = np.flatnonzero(row_counts >= row_threshold)
+    groups = np.split(rows, np.where(np.diff(rows) > 3)[0] + 1) if rows.size else []
+    groups = [g for g in groups if g.size]
+    if not groups:
+        return np.zeros((h, w), bool), {
+            "detected": False,
+            "pixels_per_mm": None,
+            "confidence": 0.0,
+            "provisional": True,
+        }
+    band = max(groups, key=lambda g: float(row_counts[g].sum()))
+    y0 = max(int(band.min()) - 16, int(h * .55))
+    y1 = min(int(band.max()) + 17, h)
+    band_dark = dark[y0:y1]
+    col_counts = band_dark.sum(axis=0)
+    cols = np.flatnonzero(col_counts > 0)
+    if cols.size < max(12, int(w * .12)):
+        return np.zeros((h, w), bool), {
+            "detected": False,
+            "pixels_per_mm": None,
+            "confidence": 0.0,
+            "provisional": True,
+        }
+    x0, x1 = int(cols.min()), int(cols.max()) + 1
+    ww, hh = x1 - x0, y1 - y0
+    if ww < int(w * .25) or hh > int(h * .24):
+        return np.zeros((h, w), bool), {
+            "detected": False,
+            "pixels_per_mm": None,
+            "confidence": 0.0,
+            "provisional": True,
+        }
+
+    mask = np.zeros((h, w), np.uint8)
+    mask[y0:y1, x0:x1] = band_dark[:, x0:x1].astype(np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 11), np.uint8))
+    mask = cv2.dilate(mask, np.ones((7, 7), np.uint8), iterations=1).astype(bool)
+
+    projection = band_dark[:, x0:x1].sum(axis=0).astype(np.float32)
+    threshold = max(2.0, float(np.percentile(projection[projection > 0], 65))) if np.any(projection > 0) else 2.0
     xs = np.flatnonzero(projection >= threshold)
     centers: list[float] = []
     if xs.size:
-        groups = np.split(xs, np.where(np.diff(xs) > 2)[0] + 1)
-        centers = [float(g.mean()) for g in groups if len(g) >= 1]
+        xgroups = np.split(xs, np.where(np.diff(xs) > 2)[0] + 1)
+        centers = [float(g.mean()) for g in xgroups if g.size]
     spacings = np.diff(centers) if len(centers) >= 3 else np.array([])
     plausible = spacings[(spacings >= 3) & (spacings <= max(4, ww * .2))]
     px_per_mm = float(np.median(plausible)) if plausible.size >= 2 else None
-    confidence = min(.85, .35 + .08 * len(centers)) if px_per_mm else .35
-    return mask.astype(bool), {
+    confidence = min(.9, .42 + .06 * len(centers)) if px_per_mm else .4
+    return mask, {
         "detected": True,
-        "bbox": [int(x), int(y), int(ww), int(hh)],
+        "bbox": [x0, y0, ww, hh],
         "pixels_per_mm": round(px_per_mm, 3) if px_per_mm else None,
         "confidence": round(float(confidence), 3),
         "provisional": True,
@@ -116,8 +135,6 @@ def _metrics(rgb: np.ndarray, valid: np.ndarray) -> dict[str, Any]:
         raise ValueError("insufficient valid skin pixels")
     lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
-    # OpenCV Lab uses 0..255 encoding. Center a* around 128 for an interpretable
-    # relative redness index; do not treat this as calibrated erythema.
     a = lab[..., 1] - 128.0
     l = lab[..., 0] * (100.0 / 255.0)
     redness_values = a[valid]
@@ -230,8 +247,6 @@ def install_dermatoscope_analysis_v178(product_api) -> None:
         except Exception as exc:
             raise HTTPException(status_code=422, detail=f"Image analysis failed: {exc}") from exc
 
-        # Compare only with the first earlier accepted capture from an identical
-        # acquisition series. Simulator and real-device data never mix.
         with product_api.store.connect() as con:
             baseline = con.execute(
                 """
