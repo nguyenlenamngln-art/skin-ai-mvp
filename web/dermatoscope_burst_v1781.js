@@ -1,7 +1,7 @@
-// V1.7.8.1 — Three-frame burst capture enhancer.
-// Keeps the stable guided-capture UI intact and enriches only the close-up capture POST.
+// V1.7.8.3 — Three-frame burst + non-verbal audio cues.
+// No spoken instructions. Short tones indicate frames, accepted positions, and completion.
 (function(){
-  const VERSION='1.7.8.1'
+  const VERSION='1.7.8.3'
   const FRAME_COUNT=3
   const GAP_MS=170
   const ANALYSIS_W=96
@@ -13,6 +13,39 @@
   const tr=(en,vi)=>locale()==='vi'?vi:en
   const sleep=(ms)=>new Promise(r=>setTimeout(r,ms))
   const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v))
+  let audioCtx=null
+
+  function disableVoiceGuidance(){
+    try{
+      if('speechSynthesis' in window)window.speechSynthesis.cancel()
+      const toggle=document.querySelector('#dermAudioToggle')
+      if(toggle){toggle.checked=false;toggle.closest('.dermAudioOption')?.remove()}
+      document.documentElement.dataset.dermatoscopeSpokenGuidance='disabled'
+    }catch(_e){}
+  }
+
+  function ensureAudio(){
+    try{
+      const C=window.AudioContext||window.webkitAudioContext
+      if(!C)return null
+      if(!audioCtx)audioCtx=new C()
+      if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{})
+      return audioCtx
+    }catch(_e){return null}
+  }
+
+  function tone(freq,duration=.055,delay=0,gain=.035){
+    const ctx=ensureAudio();if(!ctx)return
+    try{
+      const osc=ctx.createOscillator(),g=ctx.createGain(),start=ctx.currentTime+delay
+      osc.type='sine';osc.frequency.value=freq;g.gain.setValueAtTime(gain,start);g.gain.exponentialRampToValueAtTime(.001,start+duration)
+      osc.connect(g);g.connect(ctx.destination);osc.start(start);osc.stop(start+duration)
+    }catch(_e){}
+  }
+
+  function frameCue(index){tone(520+index*80,.045,0,.024)}
+  function positionCue(){tone(720,.06,0,.035);tone(920,.075,.085,.035)}
+  function completeCue(){tone(620,.07,0,.04);tone(820,.08,.10,.04);tone(1080,.12,.21,.045)}
 
   function status(textEn,textVi){
     const el=document.querySelector('#dermStatus')
@@ -92,12 +125,15 @@
   async function enrich(form){
     const first=form.get('image')
     if(!(first instanceof Blob))return form
-    status('Capturing 3-frame burst…','Đang chụp chuỗi 3 ảnh…')
+    disableVoiceGuidance()
+    status('Device contact detected — capturing automatically…','Đã nhận diện tiếp xúc da — đang tự động chụp…')
     const blobs=[first]
+    frameCue(1)
     while(blobs.length<FRAME_COUNT){
       await sleep(GAP_MS)
       blobs.push(await videoBlob())
-      status(`Capturing frame ${blobs.length}/${FRAME_COUNT}…`,`Đang chụp ảnh ${blobs.length}/${FRAME_COUNT}…`)
+      frameCue(blobs.length)
+      status(`Capturing ${blobs.length}/${FRAME_COUNT}…`,`Đang chụp ${blobs.length}/${FRAME_COUNT}…`)
     }
     const metrics=[]
     for(const blob of blobs)metrics.push(await analyseBlob(blob))
@@ -114,6 +150,9 @@
       alignment_status:alignmentStatus,
       fusion_used:false,
       fusion_reason:'deferred_until_physical_device_validation',
+      contact_inference:'image_quality_gate_proxy',
+      spoken_guidance:false,
+      audio_cues:true,
       frames:metrics.map((m,i)=>({
         index:i+1,
         quality_score:m.qualityScore,
@@ -130,7 +169,7 @@
     form.set('image',blobs[selectedIndex],`skinscope-burst-selected-${selectedIndex+1}-${Date.now()}.jpg`)
     blobs.forEach((blob,i)=>form.append(`burst_frame_${i+1}`,blob,`skinscope-burst-${i+1}-${Date.now()}.jpg`))
     form.set('burst_metadata',JSON.stringify(meta))
-    status('Burst complete — saving best frame…','Đã chụp đủ 3 ảnh — đang lưu ảnh tốt nhất…')
+    status('Capture complete — saving best frame…','Đã chụp xong — đang lưu ảnh tốt nhất…')
     return form
   }
 
@@ -140,7 +179,15 @@
     if(!isCapture)return baseFetch(input,init)
     try{
       const body=await enrich(init.body)
-      return await baseFetch(input,{...init,body})
+      const response=await baseFetch(input,{...init,body})
+      if(response.ok){
+        positionCue()
+        setTimeout(()=>{
+          const complete=document.querySelector('#dermComplete')
+          if(complete&&!complete.hidden)completeCue()
+        },80)
+      }
+      return response
     }catch(err){
       console.warn('[Skin AI burst] falling back to single frame',err)
       status('Burst unavailable — saving the accepted frame.','Không thể chụp chuỗi — đang lưu ảnh đã đạt yêu cầu.')
@@ -148,6 +195,8 @@
     }
   }
 
-  window.skinDermatoscopeBurst={version:VERSION,frameCount:FRAME_COUNT,gapMs:GAP_MS}
+  document.addEventListener('pointerdown',ensureAudio,{once:true,passive:true})
+  disableVoiceGuidance()
+  window.skinDermatoscopeBurst={version:VERSION,frameCount:FRAME_COUNT,gapMs:GAP_MS,audioCues:true,spokenGuidance:false}
   document.documentElement.dataset.dermatoscopeBurstVersion=VERSION
 })()
