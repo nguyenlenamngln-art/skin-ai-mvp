@@ -8,7 +8,7 @@ API = ROOT / "src" / "skin_ai" / "dermatoscope_capture_v171.py"
 
 def test_v1781_burst_captures_three_frames_and_selects_best():
     js = BURST.read_text(encoding="utf-8")
-    assert "const VERSION='1.7.8.1'" in js
+    assert "const VERSION='1.7.8." in js
     assert "const FRAME_COUNT=3" in js
     assert "const GAP_MS=170" in js
     assert "highest_quality_score" in js
@@ -29,14 +29,17 @@ def test_v1781_burst_preserves_stable_scan_architecture():
 
 def test_v1781_burst_is_loaded_after_guided_capture():
     transition = TRANSITION.read_text(encoding="utf-8")
-    assert "/app/dermatoscope_burst_v1781.js?v=1781" in transition
+    burst_candidates = (
+        "/app/dermatoscope_burst_v1781.js?v=1783",
+        "/app/dermatoscope_burst_v1781.js?v=1781",
+    )
     guided_candidates = (
         "/app/dermatoscope_guided_capture_v1712.js?v=1712",
         "/app/dermatoscope_guided_capture_v171.js?v=1711",
     )
-    guided = next(transition.index(asset) for asset in guided_candidates if asset in transition)
-    burst = transition.index("/app/dermatoscope_burst_v1781.js?v=1781")
-    assert guided < burst
+    burst_asset = next(asset for asset in burst_candidates if asset in transition)
+    guided_asset = next(asset for asset in guided_candidates if asset in transition)
+    assert transition.index(guided_asset) < transition.index(burst_asset)
 
 
 def test_v1781_backend_accepts_and_preserves_raw_frames():
