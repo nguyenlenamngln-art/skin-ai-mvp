@@ -1,6 +1,6 @@
-// V1.7.1.2 — consumer-facing close-up scan copy/branding polish hotfix.
+// V1.7.1.4 — consumer-facing close-up scan copy/branding polish hotfix.
 (function(){
-  const VERSION='1.7.1.2'
+  const VERSION='1.7.1.4'
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
   const pick=(en,vi)=>locale()==='vi'?vi:en
   const setText=(el,value)=>{if(el && el.textContent!==value) el.textContent=value}
@@ -34,15 +34,16 @@
     }finally{applying=false}
   }
 
-  function watch(){
+  function start(){
     loadHistoryAssets();loadLiveGuidanceAssets();loadPostCaptureAssets();loadSessionAssets();loadResumeAssets();apply()
-    const scan=document.querySelector('#scan');if(!scan)return
-    let queued=false
-    const observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;apply()})})
-    observer.observe(scan,{childList:true,subtree:true})
   }
 
+  // The close-up components own their own dynamic text. Avoid a whole-Scan subtree
+  // MutationObserver here; it can amplify DOM churn from capture/session updates.
   window.addEventListener('skin-ai:locale-change',()=>requestAnimationFrame(apply))
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(watch));else requestAnimationFrame(watch)
+  document.addEventListener('click',event=>{
+    if(event.target.closest?.('[data-derm-region],#dermStart,#dermAgain,#dermCancel'))requestAnimationFrame(apply)
+  })
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>requestAnimationFrame(start));else requestAnimationFrame(start)
   window.skinDermatoscopeUiPolish={version:VERSION,apply}
 })()

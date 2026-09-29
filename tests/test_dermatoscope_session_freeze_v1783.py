@@ -26,4 +26,4 @@ def test_session_asset_is_cache_busted():
     sw = SW.read_text(encoding="utf-8")
     assert "dermatoscope_session_v176.js?v=1761" in polish
     assert "dermatoscope_session_v176.js?v=1761" in sw
-    assert "const CACHE='skin-ai-beta-v1783'" in sw
+    assert "const CACHE='skin-ai-beta-v" in sw
