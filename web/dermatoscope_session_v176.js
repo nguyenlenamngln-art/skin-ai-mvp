@@ -1,6 +1,6 @@
-// V1.7.6 — Capture session integrity & retry limits.
+// V1.7.6.1 — Capture session integrity & retry limits hotfix.
 (function(){
-  const VERSION='1.7.6'
+  const VERSION='1.7.6.1'
   const MAX_ATTEMPTS=3
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
   const tr=(en,vi)=>locale()==='vi'?vi:en
@@ -9,7 +9,9 @@
   let region=null
   let attempts={}
   let statuses={}
+  let finishing=false
 
+  const setText=(el,value)=>{if(el&&el.textContent!==value)el.textContent=value}
   function root(){return document.querySelector('#dermV171')}
   function activeRegion(){return root()?.querySelector('.dermRegion.active')?.dataset.dermRegion||region}
   function activeShots(r){return window.skinDermatoscopeCapture?.regions?.[r]?.shots||SHOTS[r]||[]}
@@ -46,12 +48,12 @@
   function render(){
     const p=position(),panel=ensurePanel();if(!p||!panel)return
     const count=attempts[p.key]||0
-    panel.querySelector('#dermAttemptCount').textContent=`${count} / ${MAX_ATTEMPTS}`
+    setText(panel.querySelector('#dermAttemptCount'),`${count} / ${MAX_ATTEMPTS}`)
     const hint=panel.querySelector('#dermSessionHint')
-    if(statuses[p.key]==='accepted')hint.textContent=tr('Position accepted.','Vị trí đã đạt yêu cầu.')
-    else if(statuses[p.key]==='rejected'&&count>=MAX_ATTEMPTS)hint.textContent=tr('Retry limit reached. This position is marked incomplete and the scan will continue.','Đã đạt giới hạn chụp lại. Vị trí này được đánh dấu chưa hoàn tất và lần quét sẽ tiếp tục.')
-    else if(statuses[p.key]==='rejected')hint.textContent=tr('Position did not match. Reposition and try again.','Vị trí chưa khớp. Hãy điều chỉnh và chụp lại.')
-    else hint.textContent=tr(`Up to ${MAX_ATTEMPTS} attempts are allowed for this position.`,`Cho phép tối đa ${MAX_ATTEMPTS} lần chụp cho vị trí này.`)
+    if(statuses[p.key]==='accepted')setText(hint,tr('Position accepted.','Vị trí đã đạt yêu cầu.'))
+    else if(statuses[p.key]==='rejected'&&count>=MAX_ATTEMPTS)setText(hint,tr('Retry limit reached. This position is marked incomplete and the scan will continue.','Đã đạt giới hạn chụp lại. Vị trí này được đánh dấu chưa hoàn tất và lần quét sẽ tiếp tục.'))
+    else if(statuses[p.key]==='rejected')setText(hint,tr('Position did not match. Reposition and try again.','Vị trí chưa khớp. Hãy điều chỉnh và chụp lại.'))
+    else setText(hint,tr(`Up to ${MAX_ATTEMPTS} attempts are allowed for this position.`,`Cho phép tối đa ${MAX_ATTEMPTS} lần chụp cho vị trí này.`))
   }
 
   async function post(url,values){
@@ -64,15 +66,12 @@
     try{hydrate(await post('/v1/dermatoscope/sessions',{region:r,simulator:true,subject_key:'my_profile'}))}catch(_e){}
     render()
   }
-
   async function adoptSession(nextSession){hydrate(nextSession);render();return session}
-
   async function updatePosition(p,status,captureId){
     statuses[p.key]=status
     if(!session?.id)return
     try{session=await post(`/v1/dermatoscope/sessions/${encodeURIComponent(session.id)}/positions`,{region:p.region,subregion:p.subregion,status,attempts:attempts[p.key]||0,capture_id:captureId||''})}catch(_e){}
   }
-
   function registerRejected(detail){
     const p=position();if(!p)return true
     attempts[p.key]=(attempts[p.key]||0)+1
@@ -84,17 +83,16 @@
     render()
     return detail.session_retry_allowed
   }
-
   async function onAccepted(event){
     const p=position();if(!p)return
     attempts[p.key]=(attempts[p.key]||0)+1
     await updatePosition(p,'accepted',event.detail?.capture_id)
     render()
   }
-
   async function finishSession(finalStatus){
-    if(!session?.id)return
-    try{session=await post(`/v1/dermatoscope/sessions/${encodeURIComponent(session.id)}/finish`,{status:finalStatus})}catch(_e){}
+    if(finishing||!session?.id)return
+    finishing=true
+    try{session=await post(`/v1/dermatoscope/sessions/${encodeURIComponent(session.id)}/finish`,{status:finalStatus})}catch(_e){}finally{finishing=false}
   }
 
   function install(){
@@ -106,12 +104,14 @@
     })
     window.addEventListener('skin-ai:dermatoscope-position-accepted',onAccepted)
     window.addEventListener('skin-ai:dermatoscope-retake-required',()=>setTimeout(render,0))
-    const observer=new MutationObserver(()=>{
-      const complete=document.querySelector('#dermComplete')
-      if(complete&&!complete.hidden)finishSession(Object.values(statuses).some(s=>s==='rejected'||s==='skipped'||s==='incomplete')?'incomplete':'complete')
-      render()
-    })
-    const scan=document.querySelector('#scan');if(scan)observer.observe(scan,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden','class']})
+
+    const counter=document.querySelector('#dermCounter')
+    if(counter)new MutationObserver(()=>render()).observe(counter,{childList:true,characterData:true,subtree:true})
+    const complete=document.querySelector('#dermComplete')
+    if(complete)new MutationObserver(()=>{
+      if(!complete.hidden)finishSession(Object.values(statuses).some(s=>s==='rejected'||s==='skipped'||s==='incomplete')?'incomplete':'complete')
+    }).observe(complete,{attributes:true,attributeFilter:['hidden']})
+
     document.documentElement.dataset.dermatoscopeSessionVersion=VERSION
   }
 
