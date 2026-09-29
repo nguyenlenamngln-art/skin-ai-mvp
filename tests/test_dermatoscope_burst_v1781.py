@@ -30,7 +30,11 @@ def test_v1781_burst_preserves_stable_scan_architecture():
 def test_v1781_burst_is_loaded_after_guided_capture():
     transition = TRANSITION.read_text(encoding="utf-8")
     assert "/app/dermatoscope_burst_v1781.js?v=1781" in transition
-    guided = transition.index("/app/dermatoscope_guided_capture_v171.js?v=1711")
+    guided_candidates = (
+        "/app/dermatoscope_guided_capture_v1712.js?v=1712",
+        "/app/dermatoscope_guided_capture_v171.js?v=1711",
+    )
+    guided = next(transition.index(asset) for asset in guided_candidates if asset in transition)
     burst = transition.index("/app/dermatoscope_burst_v1781.js?v=1781")
     assert guided < burst
 

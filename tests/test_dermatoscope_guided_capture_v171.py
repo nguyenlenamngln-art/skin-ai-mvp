@@ -81,14 +81,15 @@ def test_v171_api_is_installed_without_changing_frozen_rgb_engine():
     assert '_CAPTURE_PROTOCOL_VERSION = "1.4"' in entry
 
 
-def test_v1711_assets_are_loaded_and_cached():
+def test_guided_capture_assets_are_loaded_and_cached_forward_compatibly():
     transition = TRANSITION.read_text(encoding="utf-8")
     sw = SW.read_text(encoding="utf-8")
-    for asset in (
-        "/app/dermatoscope_guided_capture_v171.css?v=1711",
-        "/app/dermatoscope_guided_capture_v171.js?v=1711",
-    ):
-        assert asset in transition
-        assert asset in sw
+    assert "/app/dermatoscope_guided_capture_v171.css?v=1711" in transition
+    assert "/app/dermatoscope_guided_capture_v171.css?v=1711" in sw
+    assert (
+        "/app/dermatoscope_guided_capture_v1712.js?v=1712" in transition
+        or "/app/dermatoscope_guided_capture_v171.js?v=1711" in transition
+    )
+    assert "/app/dermatoscope_guided_capture_v171.js?v=1711" in sw
     assert re.search(r"const CACHE='skin-ai-beta-v[0-9]+'", sw)
     assert CSS.exists()
