@@ -1,8 +1,8 @@
-// V1.7.0.6 — Dermatoscope transition + V1.7.8.2 Vietnamese voice loader
+// V1.7.0.7 — Dermatoscope transition + V1.7.8.3 non-verbal capture cues
 // Keeps Phone RGB code/history intact while removing the hidden legacy Scan subtree
 // from the consumer DOM when the close-up Scan page is opened.
 (function(){
-  const VERSION='1.7.0.6'
+  const VERSION='1.7.0.7'
   const params=new URLSearchParams(window.location.search)
   const researchMode=params.get('research')==='1'||params.get('developer')==='1'
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
@@ -32,9 +32,9 @@
   function loadGuidedDermatoscopeCapture(){
     if(!document.querySelector('link[data-derm-v171]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=1711';link.dataset.dermV171='1';document.head.appendChild(link)}
     if(!document.querySelector('link[data-derm-polish-v1711]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/app/dermatoscope_ui_polish_v1711.css?v=1711';link.dataset.dermPolishV1711='1';document.head.appendChild(link)}
-    loadScript('/app/dermatoscope_guided_capture_v1712.js?v=1712','data-derm-v171',()=>{loadScript('/app/dermatoscope_burst_v1781.js?v=1781','data-derm-burst-v1781')})
+    loadScript('/app/dermatoscope_guided_capture_v1712.js?v=1712','data-derm-v171',()=>{loadScript('/app/dermatoscope_burst_v1781.js?v=1783','data-derm-burst-v1781')})
     loadScript('/app/dermatoscope_ui_polish_v1711.js?v=17114','data-derm-polish-v1711')
-    if(window.skinDermatoscopeCapture)loadScript('/app/dermatoscope_burst_v1781.js?v=1781','data-derm-burst-v1781')
+    if(window.skinDermatoscopeCapture)loadScript('/app/dermatoscope_burst_v1781.js?v=1783','data-derm-burst-v1781')
   }
 
   window.addEventListener('skin-ai:locale-change',()=>setTimeout(refreshTransition,0))
