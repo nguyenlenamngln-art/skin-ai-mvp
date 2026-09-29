@@ -1,7 +1,8 @@
-// V1.7.0.0 — Dermatoscope transition foundation
-// Keeps Phone RGB code and historical data intact while retiring new consumer RGB capture.
+// V1.7.0.4 — Dermatoscope transition scan-isolation hotfix
+// Keeps Phone RGB code/history intact while removing the hidden legacy Scan subtree
+// from the consumer DOM when the close-up Scan page is opened.
 (function(){
-  const VERSION='1.7.0.0'
+  const VERSION='1.7.0.4'
   const params=new URLSearchParams(window.location.search)
   const researchMode=params.get('research')==='1'||params.get('developer')==='1'
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
@@ -61,31 +62,19 @@
 
   const baseRenderHistory=typeof renderHistory==='function'?renderHistory:null
   if(baseRenderHistory){
-    renderHistory=function(){
-      baseRenderHistory()
-      annotateLegacyHistory()
-    }
+    renderHistory=function(){baseRenderHistory();annotateLegacyHistory()}
     window.renderHistory=renderHistory
   }
 
   const baseApplyModeUI=typeof applyModeUI==='function'?applyModeUI:null
   if(baseApplyModeUI){
-    applyModeUI=function(){
-      baseApplyModeUI()
-      setLegacyButtonVisibility()
-      updateLegacyReadOnlyView()
-    }
+    applyModeUI=function(){baseApplyModeUI();setLegacyButtonVisibility();updateLegacyReadOnlyView()}
     window.applyModeUI=applyModeUI
   }
 
   const baseRender=typeof render==='function'?render:null
   if(baseRender){
-    render=function(){
-      baseRender()
-      updateEmptyHomeCopy()
-      annotateLegacyHistory()
-      updateLegacyReadOnlyView()
-    }
+    render=function(){baseRender();updateEmptyHomeCopy();annotateLegacyHistory();updateLegacyReadOnlyView()}
     window.render=render
   }
 
@@ -99,8 +88,24 @@
     try{if(typeof applyModeUI==='function')applyModeUI()}catch(_e){}
   }
 
+  function isolateConsumerScan(){
+    if(researchMode)return
+    const scan=document.querySelector('#scan')
+    const root=scan?.querySelector('#dermV171')
+    const legacy=scan?.querySelector('.scan-grid')
+    if(!root||!legacy)return
+    // The consumer close-up flow no longer uses the legacy Phone RGB/UV capture/result
+    // subtree. Removing it prevents old render/localization observers from doing work
+    // against a hidden tree whenever Scan becomes active. Research mode keeps it intact.
+    legacy.remove()
+    document.documentElement.dataset.dermatoscopeLegacyScanDetached='true'
+  }
+
   document.querySelectorAll('[data-tab="scan"],[data-go="scan"]').forEach(control=>{
-    control.addEventListener('click',()=>setTimeout(returnConsumerToAvailableScan,0))
+    control.addEventListener('click',()=>{
+      returnConsumerToAvailableScan()
+      requestAnimationFrame(isolateConsumerScan)
+    })
   })
 
   function refreshTransition(){
@@ -127,12 +132,12 @@
     }
     if(!document.querySelector('script[data-derm-polish-v1711]')){
       const script=document.createElement('script')
-      script.src='/app/dermatoscope_ui_polish_v1711.js?v=1711';script.defer=true;script.dataset.dermPolishV1711='1';document.body.appendChild(script)
+      script.src='/app/dermatoscope_ui_polish_v1711.js?v=17114';script.defer=true;script.dataset.dermPolishV1711='1';document.body.appendChild(script)
     }
   }
 
   window.addEventListener('skin-ai:locale-change',()=>setTimeout(refreshTransition,0))
-  window.skinDermatoscopeTransition={version:VERSION,researchMode,refresh:refreshTransition}
+  window.skinDermatoscopeTransition={version:VERSION,researchMode,refresh:refreshTransition,isolateConsumerScan}
   setTimeout(refreshTransition,0)
   loadGuidedDermatoscopeCapture()
 })()
