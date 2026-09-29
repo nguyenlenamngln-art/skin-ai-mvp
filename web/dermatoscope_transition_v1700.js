@@ -1,139 +1,40 @@
-// V1.7.0.4 — Dermatoscope transition scan-isolation hotfix
+// V1.7.0.5 — Dermatoscope transition + V1.7.8.1 burst loader
 // Keeps Phone RGB code/history intact while removing the hidden legacy Scan subtree
 // from the consumer DOM when the close-up Scan page is opened.
 (function(){
-  const VERSION='1.7.0.4'
+  const VERSION='1.7.0.5'
   const params=new URLSearchParams(window.location.search)
   const researchMode=params.get('research')==='1'||params.get('developer')==='1'
   const locale=()=>{try{return window.skinI18n?.getLocale?.()||document.documentElement.dataset.locale||'vi'}catch(_e){return 'vi'}}
   const pick=(en,vi)=>locale()==='vi'?vi:en
 
   function legacyRgbButton(){return document.querySelector('[data-mode="rgb"]')}
-  function setLegacyButtonVisibility(){
-    const button=legacyRgbButton()
-    if(!button)return
-    button.hidden=!researchMode
-    button.setAttribute('aria-hidden',researchMode?'false':'true')
-    button.dataset.legacyResearchOnly='true'
-    if(researchMode)button.title='Research / developer capture only'
-  }
-
-  function annotateLegacyHistory(){
-    if(typeof scans==='undefined')return
-    document.querySelectorAll('.historyRow').forEach(row=>{
-      const scan=scans.find(item=>item.id===row.dataset.id)
-      if(scan?.modality!=='rgb')return
-      row.dataset.legacyRgb='true'
-      const meta=row.querySelector('div span')
-      if(meta)meta.textContent=`${pick('Legacy Phone RGB','Phone RGB cũ')} · ${scan.source_name||'scan'}`
-      row.title=pick('Historical Phone RGB scan — view only','Lần quét Phone RGB cũ — chỉ xem')
-    })
-  }
-
-  function updateLegacyReadOnlyView(){
-    const capture=document.querySelector('#scan .capture')
-    const grid=document.querySelector('#scan .scan-grid')
-    const result=document.querySelector('#scan .result')
-    if(!capture||!result)return
-    const legacyView=!researchMode&&typeof scanMode!=='undefined'&&scanMode==='rgb'
-    capture.classList.toggle('hidden',legacyView)
-    if(grid)grid.style.gridTemplateColumns=legacyView?'1fr':''
-    let note=document.querySelector('#legacyRgbReadOnly')
-    if(legacyView){
-      if(!note){
-        note=document.createElement('div')
-        note.id='legacyRgbReadOnly'
-        note.className='scienceNote'
-        result.insertBefore(note,document.querySelector('#resultBody'))
-      }
-      note.textContent=pick(
-        'Legacy Phone RGB · read only. This historical scan is preserved for reference and is not part of the new close-up measurement series.',
-        'Phone RGB cũ · chỉ xem. Lần quét lịch sử này được giữ lại để tham chiếu và không thuộc chuỗi đo cận cảnh mới.'
-      )
-    }else if(note){note.remove()}
-  }
-
-  function updateEmptyHomeCopy(){
-    if(typeof latest!=='undefined'&&!latest){
-      const copy=document.querySelector('#latestCopy')
-      if(copy)copy.textContent=pick('Start a scan to create your baseline.','Bắt đầu một lần quét để tạo mốc ban đầu.')
-    }
-  }
+  function setLegacyButtonVisibility(){const button=legacyRgbButton();if(!button)return;button.hidden=!researchMode;button.setAttribute('aria-hidden',researchMode?'false':'true');button.dataset.legacyResearchOnly='true';if(researchMode)button.title='Research / developer capture only'}
+  function annotateLegacyHistory(){if(typeof scans==='undefined')return;document.querySelectorAll('.historyRow').forEach(row=>{const scan=scans.find(item=>item.id===row.dataset.id);if(scan?.modality!=='rgb')return;row.dataset.legacyRgb='true';const meta=row.querySelector('div span');if(meta)meta.textContent=`${pick('Legacy Phone RGB','Phone RGB cũ')} · ${scan.source_name||'scan'}`;row.title=pick('Historical Phone RGB scan — view only','Lần quét Phone RGB cũ — chỉ xem')})}
+  function updateLegacyReadOnlyView(){const capture=document.querySelector('#scan .capture'),grid=document.querySelector('#scan .scan-grid'),result=document.querySelector('#scan .result');if(!capture||!result)return;const legacyView=!researchMode&&typeof scanMode!=='undefined'&&scanMode==='rgb';capture.classList.toggle('hidden',legacyView);if(grid)grid.style.gridTemplateColumns=legacyView?'1fr':'';let note=document.querySelector('#legacyRgbReadOnly');if(legacyView){if(!note){note=document.createElement('div');note.id='legacyRgbReadOnly';note.className='scienceNote';result.insertBefore(note,document.querySelector('#resultBody'))}note.textContent=pick('Legacy Phone RGB · read only. This historical scan is preserved for reference and is not part of the new close-up measurement series.','Phone RGB cũ · chỉ xem. Lần quét lịch sử này được giữ lại để tham chiếu và không thuộc chuỗi đo cận cảnh mới.')}else if(note){note.remove()}}
+  function updateEmptyHomeCopy(){if(typeof latest!=='undefined'&&!latest){const copy=document.querySelector('#latestCopy');if(copy)copy.textContent=pick('Start a scan to create your baseline.','Bắt đầu một lần quét để tạo mốc ban đầu.')}}
 
   const baseRenderHistory=typeof renderHistory==='function'?renderHistory:null
-  if(baseRenderHistory){
-    renderHistory=function(){baseRenderHistory();annotateLegacyHistory()}
-    window.renderHistory=renderHistory
-  }
-
+  if(baseRenderHistory){renderHistory=function(){baseRenderHistory();annotateLegacyHistory()};window.renderHistory=renderHistory}
   const baseApplyModeUI=typeof applyModeUI==='function'?applyModeUI:null
-  if(baseApplyModeUI){
-    applyModeUI=function(){baseApplyModeUI();setLegacyButtonVisibility();updateLegacyReadOnlyView()}
-    window.applyModeUI=applyModeUI
-  }
-
+  if(baseApplyModeUI){applyModeUI=function(){baseApplyModeUI();setLegacyButtonVisibility();updateLegacyReadOnlyView()};window.applyModeUI=applyModeUI}
   const baseRender=typeof render==='function'?render:null
-  if(baseRender){
-    render=function(){baseRender();updateEmptyHomeCopy();annotateLegacyHistory();updateLegacyReadOnlyView()}
-    window.render=render
-  }
+  if(baseRender){render=function(){baseRender();updateEmptyHomeCopy();annotateLegacyHistory();updateLegacyReadOnlyView()};window.render=render}
 
-  function returnConsumerToAvailableScan(){
-    if(researchMode||typeof scanMode==='undefined'||scanMode!=='rgb')return
-    scanMode='uv'
-    if(typeof scansOf==='function')latest=scansOf('uv')[0]||null
-    if(typeof rejectedAttempt!=='undefined')rejectedAttempt=null
-    if(typeof resultView!=='undefined')resultView='combined'
-    try{if(typeof showError==='function')showError('')}catch(_e){}
-    try{if(typeof applyModeUI==='function')applyModeUI()}catch(_e){}
-  }
+  function returnConsumerToAvailableScan(){if(researchMode||typeof scanMode==='undefined'||scanMode!=='rgb')return;scanMode='uv';if(typeof scansOf==='function')latest=scansOf('uv')[0]||null;if(typeof rejectedAttempt!=='undefined')rejectedAttempt=null;if(typeof resultView!=='undefined')resultView='combined';try{if(typeof showError==='function')showError('')}catch(_e){};try{if(typeof applyModeUI==='function')applyModeUI()}catch(_e){}}
+  function isolateConsumerScan(){if(researchMode)return;const scan=document.querySelector('#scan'),root=scan?.querySelector('#dermV171'),legacy=scan?.querySelector('.scan-grid');if(!root||!legacy)return;legacy.remove();document.documentElement.dataset.dermatoscopeLegacyScanDetached='true'}
 
-  function isolateConsumerScan(){
-    if(researchMode)return
-    const scan=document.querySelector('#scan')
-    const root=scan?.querySelector('#dermV171')
-    const legacy=scan?.querySelector('.scan-grid')
-    if(!root||!legacy)return
-    // The consumer close-up flow no longer uses the legacy Phone RGB/UV capture/result
-    // subtree. Removing it prevents old render/localization observers from doing work
-    // against a hidden tree whenever Scan becomes active. Research mode keeps it intact.
-    legacy.remove()
-    document.documentElement.dataset.dermatoscopeLegacyScanDetached='true'
-  }
+  document.querySelectorAll('[data-tab="scan"],[data-go="scan"]').forEach(control=>{control.addEventListener('click',()=>{returnConsumerToAvailableScan();requestAnimationFrame(isolateConsumerScan)})})
 
-  document.querySelectorAll('[data-tab="scan"],[data-go="scan"]').forEach(control=>{
-    control.addEventListener('click',()=>{
-      returnConsumerToAvailableScan()
-      requestAnimationFrame(isolateConsumerScan)
-    })
-  })
+  function refreshTransition(){setLegacyButtonVisibility();updateEmptyHomeCopy();annotateLegacyHistory();updateLegacyReadOnlyView();document.documentElement.dataset.captureTransitionVersion=VERSION;document.documentElement.dataset.researchCaptureMode=researchMode?'true':'false'}
 
-  function refreshTransition(){
-    setLegacyButtonVisibility()
-    updateEmptyHomeCopy()
-    annotateLegacyHistory()
-    updateLegacyReadOnlyView()
-    document.documentElement.dataset.captureTransitionVersion=VERSION
-    document.documentElement.dataset.researchCaptureMode=researchMode?'true':'false'
-  }
-
+  function loadScript(src,key,onload){if(document.querySelector(`script[${key}]`))return;const script=document.createElement('script');script.src=src;script.defer=true;script.setAttribute(key,'1');if(onload)script.onload=onload;document.body.appendChild(script)}
   function loadGuidedDermatoscopeCapture(){
-    if(!document.querySelector('link[data-derm-v171]')){
-      const link=document.createElement('link')
-      link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=1711';link.dataset.dermV171='1';document.head.appendChild(link)
-    }
-    if(!document.querySelector('link[data-derm-polish-v1711]')){
-      const link=document.createElement('link')
-      link.rel='stylesheet';link.href='/app/dermatoscope_ui_polish_v1711.css?v=1711';link.dataset.dermPolishV1711='1';document.head.appendChild(link)
-    }
-    if(!document.querySelector('script[data-derm-v171]')){
-      const script=document.createElement('script')
-      script.src='/app/dermatoscope_guided_capture_v171.js?v=1711';script.defer=true;script.dataset.dermV171='1';document.body.appendChild(script)
-    }
-    if(!document.querySelector('script[data-derm-polish-v1711]')){
-      const script=document.createElement('script')
-      script.src='/app/dermatoscope_ui_polish_v1711.js?v=17114';script.defer=true;script.dataset.dermPolishV1711='1';document.body.appendChild(script)
-    }
+    if(!document.querySelector('link[data-derm-v171]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/app/dermatoscope_guided_capture_v171.css?v=1711';link.dataset.dermV171='1';document.head.appendChild(link)}
+    if(!document.querySelector('link[data-derm-polish-v1711]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/app/dermatoscope_ui_polish_v1711.css?v=1711';link.dataset.dermPolishV1711='1';document.head.appendChild(link)}
+    loadScript('/app/dermatoscope_guided_capture_v171.js?v=1711','data-derm-v171',()=>{loadScript('/app/dermatoscope_burst_v1781.js?v=1781','data-derm-burst-v1781')})
+    loadScript('/app/dermatoscope_ui_polish_v1711.js?v=17114','data-derm-polish-v1711')
+    if(window.skinDermatoscopeCapture)loadScript('/app/dermatoscope_burst_v1781.js?v=1781','data-derm-burst-v1781')
   }
 
   window.addEventListener('skin-ai:locale-change',()=>setTimeout(refreshTransition,0))
