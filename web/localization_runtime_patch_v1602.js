@@ -1,9 +1,10 @@
-// V1.6.0.5 — mobile capture localization ownership + runtime compatibility patch
+// V1.6.0.6 — mobile capture localization ownership + runtime compatibility patch
 // Presentation only. RGB V1.5.2, Capture Protocol V1.4, comparison scoring and study access remain unchanged.
 (function(){
-  const VERSION='1.6.0.5'
+  const VERSION='1.6.0.6'
   const state=new WeakMap()
   let scheduled=false
+  let applying=false
 
   const EN_TO_VI={
     // Compound longitudinal statuses.
@@ -57,6 +58,8 @@
     return en
   }
   function target(en){return locale()==='vi'?dynamicVi(en):canonical(en)}
+  function setText(el,value){if(el&&el.textContent!==value)el.textContent=value}
+  function setAttr(el,name,value){if(el&&el.getAttribute(name)!==value)el.setAttribute(name,value)}
 
   // Extend the shared translator so legacy capture writers can localize before touching the DOM.
   const baseT=window.skinI18n?.t?.bind(window.skinI18n)
@@ -101,7 +104,7 @@
       if(Number.isNaN(date.getTime()))return
       const vi=locale()==='vi'
       const formatted=new Intl.DateTimeFormat(vi?'vi-VN':'en-US',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:!vi}).format(date)
-      if(el.textContent!==formatted)el.textContent=formatted
+      setText(el,formatted)
     }catch(_e){}
   }
 
@@ -110,11 +113,11 @@
     if(!el)return
     const core=el.textContent.trim()
     if(locale()==='vi'){
-      if(core==='good'||core==='Good')el.textContent='Tốt'
-      else if(core==='poor'||core==='Poor')el.textContent='Chưa đạt'
+      if(core==='good'||core==='Good')setText(el,'Tốt')
+      else if(core==='poor'||core==='Poor')setText(el,'Chưa đạt')
     }else{
-      if(core==='Tốt')el.textContent='Good'
-      else if(core==='Chưa đạt'||core==='Kém')el.textContent='Poor'
+      if(core==='Tốt')setText(el,'Good')
+      else if(core==='Chưa đạt'||core==='Kém')setText(el,'Poor')
     }
   }
 
@@ -127,28 +130,35 @@
       ['#captureGuidanceV2 .v159GhostLabel','Match previous framing'],
       ['#cgCancelCamera','Cancel'],['#cgCapture','Capture photo']
     ]
-    for(const [selector,en] of pairs){const el=document.querySelector(selector);if(el&&el.textContent!==t(en))el.textContent=t(en)}
+    for(const [selector,en] of pairs)setText(document.querySelector(selector),t(en))
     const ghost=document.querySelector('.v159Ghost')
-    if(ghost)ghost.alt=t('Previous comparable scan alignment reference')
+    setAttr(ghost,'alt',t('Previous comparable scan alignment reference'))
     const labelMap={lighting:'Lighting',sharpness:'Sharpness',stability:'Stability',distance:'Distance'}
-    Object.entries(labelMap).forEach(([key,en])=>{const el=document.querySelector(`[data-cg-check="${key}"] span`);if(el)el.textContent=t(en)})
+    Object.entries(labelMap).forEach(([key,en])=>setText(document.querySelector(`[data-cg-check="${key}"] span`),t(en)))
   }
 
   function apply(){
+    if(applying)return
+    applying=true
     scheduled=false
-    const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT)
-    let node
-    while((node=walker.nextNode()))translateNode(node)
-    formatResultDate();localizeCaptureQualityValue();refreshCaptureSemantics()
-    document.documentElement.dataset.localizationPatchVersion=VERSION
+    try{
+      const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT)
+      let node
+      while((node=walker.nextNode()))translateNode(node)
+      formatResultDate();localizeCaptureQualityValue();refreshCaptureSemantics()
+      document.documentElement.dataset.localizationPatchVersion=VERSION
+    }finally{
+      applying=false
+    }
   }
-  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(apply)}
+  function schedule(){if(scheduled||applying)return;scheduled=true;requestAnimationFrame(apply)}
 
   new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,characterData:true})
   window.addEventListener('skin-ai:locale-change',schedule)
   document.addEventListener('click',e=>{
     if(e.target.closest('[data-tab],[data-go],[data-mode],[data-result-view],#cgOpenCamera,#cgCancelCamera,#cgCapture,#cgContinue,#cgRetake'))setTimeout(schedule,0)
   })
-  setInterval(()=>{if(document.querySelector('#scan.view.active'))schedule()},750)
+  // MutationObserver + explicit UI events cover dynamic content. Avoid periodic full-DOM
+  // translation passes on Scan; they are unnecessary and can monopolize the main thread.
   setTimeout(()=>{schedule();window.dispatchEvent(new CustomEvent('skin-ai:capture-i18n-ready'))},0)
 })()
