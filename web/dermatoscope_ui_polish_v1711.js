@@ -12,7 +12,7 @@
   function loadHistoryAssets(){addStyle('/app/dermatoscope_history_v172.css?v=172');addScript('/app/dermatoscope_history_v172.js?v=172')}
   function loadLiveGuidanceAssets(){addStyle('/app/dermatoscope_live_guidance_v174.css?v=174');addScript('/app/dermatoscope_live_guidance_v174.js?v=174')}
   function loadPostCaptureAssets(){addStyle('/app/dermatoscope_postcapture_v175.css?v=175');addScript('/app/dermatoscope_postcapture_v175.js?v=175')}
-  function loadSessionAssets(){addStyle('/app/dermatoscope_session_v176.css?v=176');addScript('/app/dermatoscope_session_v176.js?v=176')}
+  function loadSessionAssets(){addStyle('/app/dermatoscope_session_v176.css?v=176');addScript('/app/dermatoscope_session_v176.js?v=1761')}
   function loadResumeAssets(){addStyle('/app/dermatoscope_resume_v177.css?v=177');addScript('/app/dermatoscope_resume_v177.js?v=177')}
 
   function apply(){
