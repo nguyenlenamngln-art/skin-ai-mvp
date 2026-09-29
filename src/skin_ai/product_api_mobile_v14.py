@@ -196,4 +196,15 @@ install_dermatoscope_registration_v173(product_api)
 install_dermatoscope_retake_v175(product_api)
 install_dermatoscope_session_v176(product_api)
 install_dermatoscope_resume_v177(product_api)
+
+# product_api mounts the SPA at '/' during module import. Starlette matches
+# routes in registration order, so that catch-all mount would shadow every
+# route installed above. Move only the named web mount to the end after all
+# late-installed APIs have been registered.
+_web_mounts = [route for route in product_api.app.router.routes if getattr(route, "name", None) == "web"]
+if _web_mounts:
+    product_api.app.router.routes[:] = [
+        route for route in product_api.app.router.routes if getattr(route, "name", None) != "web"
+    ] + _web_mounts
+
 app = product_api.app
