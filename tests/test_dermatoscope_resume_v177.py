@@ -59,4 +59,5 @@ def test_v177_assets_are_loaded_and_cached():
     ):
         assert asset in polish
         assert asset in sw
-    assert "skin-ai-beta-v177" in sw
+    # Later releases may advance the global cache while retaining V1.7.7 assets.
+    assert "const CACHE='skin-ai-beta-v" in sw
